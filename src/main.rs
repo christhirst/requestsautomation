@@ -22,10 +22,18 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct action {
     pub action: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct resp {
+    pub links: Vec<Link>,
+    pub id: String,
+    pub status: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -164,15 +172,21 @@ async fn fetchdata(
 async fn getData(url: &str, username: &str, password: &str) -> Result<Vec<Task>, CliError> {
     let client = reqwest::Client::new();
     let mut data = fetchdata(&client, url, username, password).await?;
+
     let mut alltasks: Vec<Task> = vec![];
-    let mut uri: String = url.to_owned();
+
     let mut count = 0;
-    while data.has_more && count < 3 {
-        data = fetchdata(&client, url, username, password).await?;
-        alltasks.append(&mut data.tasks);
-        if &data.links[3].rel == "next" {
-            uri = data.links[3].rel.clone();
+
+    let link = data.links.get(3);
+    let next = link.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
+    let mut uri = "".to_owned();
+    while data.has_more && count < 3 && next.rel == "next" {
+        if next.rel == "next" {
+            uri = next.href.clone();
         }
+        //data = fetchdata(&client, &ouri, username, password).await?.tasks;
+        alltasks.append(&mut fetchdata(&client, &uri, username, password).await?.tasks);
+
         count += 1;
     }
 
@@ -183,12 +197,13 @@ async fn getData(url: &str, username: &str, password: &str) -> Result<Vec<Task>,
 async fn main() -> Result<(), CliError> {
     let file = "Config.toml";
     let conf = confload(file)?;
-    let urls = conf.url;
+    let url = conf.url;
     let username = conf.username;
     let password = conf.password;
+    let checkmode = conf.checkmode;
 
-    let url = "http://localhost:8000/users";
-    let data = getData(url, &username, &password).await?;
+    //let url = "http://localhost:8000/users";
+    let data = getData(&url, &username, &password).await?;
 
     let mut header = vec!["".to_owned()];
     //let s1 = Series::new("Ocean", &["Atlantic", "Indian"]);
@@ -197,11 +212,9 @@ async fn main() -> Result<(), CliError> {
         for iii in ii.fields {
             header.push(iii.name.to_owned())
         }
-
         println!("{:?}", header)
     };
-    //let mut v: Vec<Series> = vec![];
-    //let mut s1 = Series::new("Ocean", v);
+
     let mut hm: HashMap<String, Series> = HashMap::from([]);
 
     for i in header {
@@ -210,14 +223,7 @@ async fn main() -> Result<(), CliError> {
         hm.entry(i).or_insert(s);
     }
 
-    /* let next = &response_json.links.get(3);
-    println!("{:?}", next); */
-    // for i in response_json.has_more {}
-
     for i in data {
-        //df._add_columns(columns, schema)
-        // let v: Vec<String> = vec![];
-
         let mut v: Vec<String> = vec![];
         v.push("value".to_owned());
         for iii in &i.fields {
@@ -227,48 +233,37 @@ async fn main() -> Result<(), CliError> {
             if let Some(x) = oo {
                 x.append(&s);
             }
-            //calculate_length(*oo, &s);
-            //oo.append(todo!());
-
-            //solar_distance.entry(ii.to_string()).or_insert(v.clone());
         }
-        //solar_distance.entry(ii.name).or_insert(ii.value);
-        /* v.push(i.fields[0].name);
-        println!("{:?}", ii);
-        println!("{:?}", ii.name); */
     }
-    // let df1 = DataFrame::default();
+
     let mut df2 = DataFrame::default();
     for (i, v) in hm {
-        //let p = v.str.to_datetime.unwrap();
-        //print!("{:?}", p);
         let df = v.into_frame();
         df2 = concat_df_horizontal(&[df2.clone(), df.clone()])?;
     }
-
+    println!("{:?}", df2);
     let mut out = df2
         .clone()
         .lazy()
-        .select([
-            col("*"),
+        .filter(
             col("APP_INSTANCE_NAME")
                 .str()
-                .contains(lit("CAccount"), false)
-                .alias("instance"),
+                .contains(lit("CAccount"), false),
+        )
+        .filter(
             col("Process Definition.Tasks.Task Name")
                 .str()
-                .contains(lit("Update"), false)
-                .alias("update"),
-        ])
-        .filter(col("instance").eq(lit(true)))
-        .filter(col("update").eq(lit(true)))
-        .with_columns([
-            //col("*"),
-            col("Process Instance.Task Information.Creation Date").cast(DataType::Datetime(
-                datatypes::TimeUnit::Milliseconds,
-                Some("UTC".to_owned()),
-            )),
-        ])
+                .contains(lit("Update"), false),
+        )
+        .with_columns(
+            [
+                col("Process Instance.Task Information.Creation Date").cast(DataType::Datetime(
+                    datatypes::TimeUnit::Milliseconds,
+                    Some("UTC".to_owned()),
+                )),
+            ],
+        )
+        .with_columns([col("Process Instance.Task Details.Key").cast(DataType::Int64)])
         .sort(
             "Process Instance.Task Information.Creation Date",
             SortOptions {
@@ -277,81 +272,39 @@ async fn main() -> Result<(), CliError> {
                 ..Default::default()
             },
         )
-        //.filter(col("Process Instance.Task Information.Creation Date").is_in(lit("Update")))
         .collect()?;
     let ne = out.drop_in_place("");
 
-    //let filtered_df = out.lazy().filter(col("regex").eq(lit(true))).collect();
-
-    println!("{:?}", df2);
     println!("{:?}", out);
-    /*   let tasks = out["Process Instance.Task Details.Key"].as_list();
+    let tasks = out["Process Instance.Task Details.Key"].as_list();
+    let json_data = r#"{"action": "retry"}"#;
+    let client = reqwest::Client::new();
+    for i in &tasks {
+        let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
+        let id = o.get(0).unwrap();
+        println!("{}", id);
 
-       for i in &tasks {
-           println!("{:?}", i);
-       }
-    */
-    /* client
-    .put(url)
-    .header("x-Requested-By", "Rust")
-    .header("Content-Type", "application/json")
-    .basic_auth("username", Some("password"))
-    .send()
-    .await?; */
-
-    /* */
-
-    //let response = reqwest::get("https://jsonplaceholder.typicode.com/todos/1").await?;
-    //let mut body = std::io::Cursor::new(response.bytes().await?);
-    //let mut buffer = Vec::new();
-    //let ww = body.read_to_end(&mut buffer)?;
-
-    /*  let df = JsonReader::new(body).finish()?;
-       let out = df
-           .clone()
-           .lazy()
-           .select([col("tasks")])
-           .explode(["tasks"])
-           .select([col("tasks")])
-           .unnest(["tasks"])
-           .select([col("fields")])
-           /* .sort(
-               "len",
-               SortOptions {
-                   descending: true,
-                   nulls_last: true,
-                   ..Default::default()
-               },
-           ) */
-           .collect()?;
-       for i in out.iter() {
-           println!("{:?}", i)
-       }
-
-       //let out2 = out.get_row(0);
-       println!("{:?}", out);
-    */
-    // read the response into df, per method of JsonReader
-
-    //println!("{:?}", response);
-    /*  match response.status() {
-        reqwest::StatusCode::OK => {
-            // on success, parse our JSON to an APIResponse
-            match response.json::<APIResponse>().await {
-                Ok(parsed) => println!("Success! {:?}", parsed),
-                Err(_) => println!("Hm, the response didn't match the shape we expected."),
-            };
+        let action = action {
+            action: "retry".to_owned(),
+        };
+        let mut owned_string: String = "http://localhost:3001/".to_owned();
+        let mut uu = format!("{}{}", owned_string, id);
+        println!("{uu}");
+        let response = client
+            .put(uu)
+            .body(json_data.to_owned())
+            .header(AUTHORIZATION, "Bearer [AUTH_TOKEN]")
+            .header(CONTENT_TYPE, "application/json")
+            .header(ACCEPT, "application/json")
+            .basic_auth(username.clone(), Some(password.clone()))
+            .send()
+            .await?;
+        let json: resp = response.json().await?;
+        println!("{:?}", json);
+        if checkmode {
+            break;
         }
-        reqwest::StatusCode::UNAUTHORIZED => {
-            println!("Need to grab a new token");
-        }
-        _ => {
-            panic!("Uh oh! Something unexpected happened.");
-        }
-    } */
+    }
 
-    /*  println!("{:?}", df);
-
-    println!("Hello, world!"); */
-    todo!()
+    Ok(())
 }

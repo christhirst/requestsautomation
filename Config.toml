@@ -1,4 +1,4 @@
 username = "testuser"
 password = "testPW"
-url = "http://0.0.0.0:389"
+url = "http://localhost:8000/users"
 checkmode = true
