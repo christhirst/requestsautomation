@@ -1,7 +1,9 @@
 mod config;
 
+use chrono::prelude::*;
 use config::{load_or_initialize, AppConfig, ConfigError};
 use polars::functions::concat_df_horizontal;
+use polars::lazy::dsl::StrptimeOptions;
 use polars::prelude::*;
 use polars::{
     chunked_array::ops::SortOptions,
@@ -215,7 +217,6 @@ async fn main() -> Result<(), CliError> {
     }
 
     for i in data {
-        let mut v: Vec<String> = vec![];
         for iii in &i.fields {
             let a = iii.name.clone();
             let s = Series::new(&a, vec![iii.value.to_string().clone()]);
@@ -245,14 +246,18 @@ async fn main() -> Result<(), CliError> {
                 .str()
                 .contains(lit("Update"), false),
         )
-        .with_columns(
-            [
-                col("Process Instance.Task Information.Creation Date").cast(DataType::Datetime(
-                    datatypes::TimeUnit::Milliseconds,
-                    Some("UTC".to_owned()),
-                )),
-            ],
-        )
+        .with_columns([col("Process Instance.Task Information.Creation Date")
+            .str()
+            .strptime(
+                DataType::Datetime(TimeUnit::Milliseconds, None),
+                StrptimeOptions {
+                    format: Some("%Y-%m-%dT%H:%M:%SZ".to_owned()),
+                    strict: false,
+                    exact: false,
+                    cache: false,
+                },
+                lit("raise"),
+            )])
         .with_columns([col("Process Instance.Task Details.Key").cast(DataType::Int64)])
         .sort(
             "Process Instance.Task Information.Creation Date",
