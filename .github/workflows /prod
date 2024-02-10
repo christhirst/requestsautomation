@@ -53,8 +53,8 @@ jobs:
           context: .
           target: runtime
           push: true
-          tags: raynkami/rust.ldap:v0.0.2
-          labels: rust.ldap
+          tags: raynkami/rust.auto:v0.0.2
+          labels: rust.auto
 
   del_runs:
     runs-on: ubuntu-latest
