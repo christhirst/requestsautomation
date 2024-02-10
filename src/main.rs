@@ -8,12 +8,15 @@ use polars::{
     datatypes::DataType,
     lazy::{dsl::col, frame::IntoLazy},
 };
+
+//polars::prelude::NamedFrom<std::vec::Vec<serde_json::Value>
 use reqwest::{
     self,
     header::{ACCEPT, CONTENT_TYPE},
     Client, Error as rError,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -65,7 +68,7 @@ pub struct Link2 {
 #[serde(rename_all = "camelCase")]
 pub struct Field {
     pub name: String,
-    pub value: String,
+    pub value: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -119,7 +122,6 @@ impl From<rError> for CliError {
 }
 
 fn confload(file: &str) -> Result<AppConfig, CliError> {
-    println!("{:?}", file);
     let config: AppConfig = match load_or_initialize(file) {
         Ok(v) => v,
         Err(err) => {
@@ -154,6 +156,7 @@ async fn fetchdata(
         .basic_auth(username, Some(password))
         .send()
         .await?;
+    println!("{:?}", response);
     let json: Root = response.json().await?;
     Ok(json)
 }
@@ -201,7 +204,6 @@ async fn main() -> Result<(), CliError> {
         for iii in ii.fields {
             header.push(iii.name.to_owned())
         }
-        println!("{:?}", header)
     };
 
     let mut hm: HashMap<String, Series> = HashMap::from([]);
@@ -214,10 +216,9 @@ async fn main() -> Result<(), CliError> {
 
     for i in data {
         let mut v: Vec<String> = vec![];
-        v.push("value".to_owned());
         for iii in &i.fields {
             let a = iii.name.clone();
-            let s = Series::new(&a, vec![iii.value.clone()]);
+            let s = Series::new(&a, vec![iii.value.to_string().clone()]);
             let oo = hm.get_mut(&a);
             if let Some(x) = oo {
                 let _ = x.append(&s);

@@ -1,6 +1,8 @@
 username = "testuser"
 password = "testPW"
 baseurl = "http://localhost:8000"
-urlget = "?q=Status"
+urlget = ""
 urlput = "/users"
 checkmode = true
+listof = "CAccount"
+attr = "Process Instance.Task Information.Target User"
