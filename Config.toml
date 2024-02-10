@@ -1,4 +1,6 @@
 username = "testuser"
 password = "testPW"
-url = "http://localhost:8000/users"
+baseurl = "http://localhost:8000"
+urlget = "?q=Status"
+urlput = "/users"
 checkmode = true

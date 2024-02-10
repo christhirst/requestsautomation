@@ -1,36 +1,30 @@
 mod config;
 
 use config::{load_or_initialize, AppConfig, ConfigError};
-use futures::io::Cursor;
 use polars::functions::concat_df_horizontal;
 use polars::prelude::*;
 use polars::{
     chunked_array::ops::SortOptions,
     datatypes::DataType,
-    df,
     lazy::{dsl::col, frame::IntoLazy},
-    prelude::{JsonReader, Schema, SerReader},
 };
-use reqwest::Response;
-use std::collections::HashMap;
-use std::{error::Error, io::Read};
-
 use reqwest::{
     self,
-    header::{VacantEntry, ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    header::{ACCEPT, CONTENT_TYPE},
     Client, Error as rError,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct action {
+pub struct Action {
     pub action: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct resp {
+pub struct Resp {
     pub links: Vec<Link>,
     pub id: String,
     pub status: String,
@@ -97,11 +91,6 @@ pub struct OptionResponse {
     pub completed: bool,
 }
 
-fn calculate_length(mut s: Series, a: &Series) -> usize {
-    s.append(a);
-    todo!()
-}
-
 #[derive(Debug)]
 pub enum CliError {
     EntityNotFound { entity: &'static str, id: i64 },
@@ -147,7 +136,7 @@ fn confload(file: &str) -> Result<AppConfig, CliError> {
         }
     };
 
-    return Ok(config);
+    Ok(config)
     //println!("{:?}", config);
 }
 
@@ -159,7 +148,7 @@ async fn fetchdata(
 ) -> Result<Root, CliError> {
     let response = client
         .get(url)
-        .header(AUTHORIZATION, "Bearer [AUTH_TOKEN]")
+        //.header(AUTHORIZATION, "Bearer [AUTH_TOKEN]")
         .header(CONTENT_TYPE, "application/json")
         .header(ACCEPT, "application/json")
         .basic_auth(username, Some(password))
@@ -169,9 +158,9 @@ async fn fetchdata(
     Ok(json)
 }
 
-async fn getData(url: &str, username: &str, password: &str) -> Result<Vec<Task>, CliError> {
+async fn get_data(url: &str, username: &str, password: &str) -> Result<Vec<Task>, CliError> {
     let client = reqwest::Client::new();
-    let mut data = fetchdata(&client, url, username, password).await?;
+    let data = fetchdata(&client, url, username, password).await?;
 
     let mut alltasks: Vec<Task> = vec![];
 
@@ -180,7 +169,7 @@ async fn getData(url: &str, username: &str, password: &str) -> Result<Vec<Task>,
     let link = data.links.get(3);
     let next = link.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
     let mut uri = "".to_owned();
-    while data.has_more && count < 3 && next.rel == "next" {
+    while data.has_more && count < 1 && next.rel == "next" {
         if next.rel == "next" {
             uri = next.href.clone();
         }
@@ -197,18 +186,18 @@ async fn getData(url: &str, username: &str, password: &str) -> Result<Vec<Task>,
 async fn main() -> Result<(), CliError> {
     let file = "Config.toml";
     let conf = confload(file)?;
-    let url = conf.url;
+    let url = conf.baseurl;
+    let urlget = conf.urlget;
+    let urlput = conf.urlput;
     let username = conf.username;
     let password = conf.password;
     let checkmode = conf.checkmode;
 
-    //let url = "http://localhost:8000/users";
-    let data = getData(&url, &username, &password).await?;
-
+    let geturl = format!("{}{}{}", url, urlput, urlget);
+    let data = get_data(&geturl, &username, &password).await?;
     let mut header = vec!["".to_owned()];
     //let s1 = Series::new("Ocean", &["Atlantic", "Indian"]);
     if let Some(ii) = data.clone().into_iter().next() {
-        let v: Vec<String> = vec![];
         for iii in ii.fields {
             header.push(iii.name.to_owned())
         }
@@ -218,7 +207,7 @@ async fn main() -> Result<(), CliError> {
     let mut hm: HashMap<String, Series> = HashMap::from([]);
 
     for i in header {
-        let mut v1: Vec<String> = vec![];
+        let v1: Vec<String> = vec![];
         let s = Series::new(i.as_str(), v1);
         hm.entry(i).or_insert(s);
     }
@@ -231,13 +220,13 @@ async fn main() -> Result<(), CliError> {
             let s = Series::new(&a, vec![iii.value.clone()]);
             let oo = hm.get_mut(&a);
             if let Some(x) = oo {
-                x.append(&s);
+                let _ = x.append(&s);
             }
         }
     }
 
     let mut df2 = DataFrame::default();
-    for (i, v) in hm {
+    for (_i, v) in hm {
         let df = v.into_frame();
         df2 = concat_df_horizontal(&[df2.clone(), df.clone()])?;
     }
@@ -267,13 +256,13 @@ async fn main() -> Result<(), CliError> {
         .sort(
             "Process Instance.Task Information.Creation Date",
             SortOptions {
-                descending: true,
+                descending: false,
                 nulls_last: true,
                 ..Default::default()
             },
         )
         .collect()?;
-    let ne = out.drop_in_place("");
+    let _ne = out.drop_in_place("");
 
     println!("{:?}", out);
     let tasks = out["Process Instance.Task Details.Key"].as_list();
@@ -284,22 +273,21 @@ async fn main() -> Result<(), CliError> {
         let id = o.get(0).unwrap();
         println!("{}", id);
 
-        let action = action {
+        /*  let action = Action {
             action: "retry".to_owned(),
-        };
-        let mut owned_string: String = "http://localhost:3001/".to_owned();
-        let mut uu = format!("{}{}", owned_string, id);
-        println!("{uu}");
+        }; */
+        //let mut owned_string: String = "http://localhost:3001/provtasks/".to_owned();
+        let puturl = format!("{}{}{}{}", url, urlput, "/", id);
         let response = client
-            .put(uu)
+            .put(puturl)
             .body(json_data.to_owned())
-            .header(AUTHORIZATION, "Bearer [AUTH_TOKEN]")
+            //.header(AUTHORIZATION, "Bearer [AUTH_TOKEN]")
             .header(CONTENT_TYPE, "application/json")
             .header(ACCEPT, "application/json")
             .basic_auth(username.clone(), Some(password.clone()))
             .send()
             .await?;
-        let json: resp = response.json().await?;
+        let json: Resp = response.json().await?;
         println!("{:?}", json);
         if checkmode {
             break;

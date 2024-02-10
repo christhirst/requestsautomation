@@ -25,7 +25,9 @@ impl From<toml::de::Error> for ConfigError {
 pub struct AppConfig {
     pub username: String,
     pub password: String,
-    pub url: String,
+    pub baseurl: String,
+    pub urlget: String,
+    pub urlput: String,
     pub checkmode: bool,
 }
 
@@ -34,7 +36,9 @@ impl Default for AppConfig {
         Self {
             username: "testuser".to_string(),
             password: "admin".to_string(),
-            url: "http://0.0.0.0:389".to_string(),
+            baseurl: "http://0.0.0.0:389".to_string(),
+            urlget: "/".to_string(),
+            urlput: "".to_string(),
             checkmode: true,
         }
     }
