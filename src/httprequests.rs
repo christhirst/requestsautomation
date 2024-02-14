@@ -5,7 +5,12 @@ use reqwest::{
 
 use crate::{CliError, Root, Task};
 
-pub async fn get_data(url: &str, username: &str, password: &str) -> Result<Vec<Task>, CliError> {
+pub async fn get_data(
+    url: &str,
+    username: &str,
+    password: &str,
+    fetched: u32,
+) -> Result<Vec<Task>, CliError> {
     let client = reqwest::Client::new();
     let data = fetchdata(&client, url, username, password).await?;
 
@@ -16,7 +21,7 @@ pub async fn get_data(url: &str, username: &str, password: &str) -> Result<Vec<T
     let link = data.links.get(3);
     let next = link.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
     let mut uri = "".to_owned();
-    while data.has_more && count < 1 && next.rel == "next" {
+    while data.has_more && count < fetched && next.rel == "next" {
         if next.rel == "next" {
             uri = next.href.clone();
         }

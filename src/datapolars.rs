@@ -47,3 +47,22 @@ pub fn get_data(df: DataFrame, filter1: &str, filter2: &str) -> Result<DataFrame
         .collect()?;
     Ok(out)
 }
+
+pub fn pl_vstr_to_selects(df: DataFrame, filter: Vec<&str>) -> Result<DataFrame, PolarsError> {
+    let mut eer: Vec<polars::lazy::dsl::Expr> = vec![];
+    for f in filter {
+        eer.push(col(f))
+    }
+
+    let df = df
+        .clone()
+        .lazy()
+        .select([
+            (col("Process Instance.Task Information.Creation Date")),
+            (col("Objects.Name")),
+            (col("Process Instance.Task Details.Key")),
+            (col("Process Definition.Tasks.Task Name")),
+        ])
+        .collect()?;
+    Ok(df)
+}

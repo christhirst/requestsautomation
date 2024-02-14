@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
+use crate::datapolars::pl_vstr_to_selects;
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
@@ -162,12 +164,13 @@ async fn main() -> Result<(), CliError> {
     let urlput = conf.urlput;
     let username = conf.username;
     let password = conf.password;
+    let entries = conf.entries;
     let filter1 = conf.filter1;
     let filter2 = conf.filter2;
     let checkmode = conf.checkmode;
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
-    let data = httprequests::get_data(&geturl, &username, &password).await?;
+    let data = httprequests::get_data(&geturl, &username, &password, entries).await?;
     let mut headers = vec!["".to_owned()];
 
     if let Some(ii) = data.clone().into_iter().next() {
@@ -194,16 +197,13 @@ async fn main() -> Result<(), CliError> {
     }
     println!("{:?}", df2);
 
-    let df = df2
-        .clone()
-        .lazy()
-        .select([
-            (col("Process Instance.Task Information.Creation Date")),
-            (col("Objects.Name")),
-            (col("Process Instance.Task Details.Key")),
-            (col("Process Definition.Tasks.Task Name")),
-        ])
-        .collect()?;
+    let ss = vec![
+        "Process Instance.Task Information.Creation Date",
+        "Objects.Name",
+        "Process Instance.Task Details.Key",
+        "Process Definition.Tasks.Task Name",
+    ];
+    let df = pl_vstr_to_selects(df2, ss)?;
 
     let mut out = datapolars::get_data(df, &filter1, &filter2)?;
     let _ne = out.drop_in_place("");
@@ -226,7 +226,6 @@ async fn main() -> Result<(), CliError> {
         let response = client
             .put(puturl)
             .body(json_data.to_owned())
-            //.header(AUTHORIZATION, "Bearer [AUTH_TOKEN]")
             .header(CONTENT_TYPE, "application/json")
             .header(ACCEPT, "application/json")
             .basic_auth(username.clone(), Some(password.clone()))

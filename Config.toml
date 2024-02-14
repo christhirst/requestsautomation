@@ -4,6 +4,7 @@ baseurl = "http://localhost:8000"
 urlget = ""
 urlput = "/users"
 checkmode = true
+entries = 2
 filter1 = "."
 filter2 = "."
 listof = "AAccount"
