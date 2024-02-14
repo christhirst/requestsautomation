@@ -26,6 +26,7 @@ jobs:
           haskell: true
           large-packages: true
           swap-storage: true
+          docker-images: true
 
       - name: Delete huge unnecessary tools folder
         run: rm -rf /opt/hostedtoolcache
