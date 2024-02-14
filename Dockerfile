@@ -1,4 +1,4 @@
-FROM clux/muslrust:stable as chef
+FROM rust:slim as chef
  
 RUN cargo install cargo-chef
 WORKDIR /app
