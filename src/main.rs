@@ -275,13 +275,14 @@ async fn main() -> Result<(), CliError> {
     let json_data = r#"{"action": "retry"}"#;
     let client = reqwest::Client::new();
     for i in &tasks {
+        if checkmode {
+            break;
+        }
+
         let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
         let id = o.get(0).unwrap();
         println!("{}", id);
 
-        /*  let action = Action {
-            action: "retry".to_owned(),
-        }; */
         //let mut owned_string: String = "http://localhost:3001/provtasks/".to_owned();
         let puturl = format!("{}{}{}{}", url, urlput, "/", id);
         let response = client
@@ -295,9 +296,6 @@ async fn main() -> Result<(), CliError> {
             .await?;
         let json: Resp = response.json().await?;
         println!("{:?}", json);
-        if checkmode {
-            break;
-        }
     }
 
     Ok(())
