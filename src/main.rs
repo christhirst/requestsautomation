@@ -1,4 +1,6 @@
 mod config;
+mod datapolars;
+mod httprequests;
 
 use chrono::prelude::*;
 use config::{load_or_initialize, AppConfig, ConfigError};
@@ -123,7 +125,7 @@ impl From<rError> for CliError {
     }
 }
 
-fn confload(file: &str) -> Result<AppConfig, CliError> {
+/* fn confload(file: &str) -> Result<AppConfig, CliError> {
     let config: AppConfig = match load_or_initialize(file) {
         Ok(v) => v,
         Err(err) => {
@@ -142,80 +144,9 @@ fn confload(file: &str) -> Result<AppConfig, CliError> {
 
     Ok(config)
     //println!("{:?}", config);
-}
+} */
 
-async fn fetchdata(
-    client: &Client,
-    url: &str,
-    username: &str,
-    password: &str,
-) -> Result<Root, CliError> {
-    let response = client
-        .get(url)
-        //.header(AUTHORIZATION, "Bearer [AUTH_TOKEN]")
-        .header(CONTENT_TYPE, "application/json")
-        .header(ACCEPT, "application/json")
-        .basic_auth(username, Some(password))
-        .send()
-        .await?;
-    println!("{:?}", response);
-    let json: Root = response.json().await?;
-    Ok(json)
-}
-
-async fn get_data(url: &str, username: &str, password: &str) -> Result<Vec<Task>, CliError> {
-    let client = reqwest::Client::new();
-    let data = fetchdata(&client, url, username, password).await?;
-
-    let mut alltasks: Vec<Task> = vec![];
-
-    let mut count = 0;
-
-    let link = data.links.get(3);
-    let next = link.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
-    let mut uri = "".to_owned();
-    while data.has_more && count < 1 && next.rel == "next" {
-        if next.rel == "next" {
-            uri = next.href.clone();
-        }
-        //data = fetchdata(&client, &ouri, username, password).await?.tasks;
-        alltasks.append(&mut fetchdata(&client, &uri, username, password).await?.tasks);
-
-        count += 1;
-    }
-
-    Ok(alltasks)
-}
-
-#[tokio::main]
-async fn main() -> Result<(), CliError> {
-    let file = "Config.toml";
-    let conf = confload(file)?;
-    let url = conf.baseurl;
-    let urlget = conf.urlget;
-    let urlput = conf.urlput;
-    let username = conf.username;
-    let password = conf.password;
-    let checkmode = conf.checkmode;
-
-    let geturl = format!("{}{}{}", url, urlput, urlget);
-    let data = get_data(&geturl, &username, &password).await?;
-    let mut header = vec!["".to_owned()];
-    //let s1 = Series::new("Ocean", &["Atlantic", "Indian"]);
-    if let Some(ii) = data.clone().into_iter().next() {
-        for iii in ii.fields {
-            header.push(iii.name.to_owned())
-        }
-    };
-
-    let mut hm: HashMap<String, Series> = HashMap::from([]);
-
-    for i in header {
-        let v1: Vec<String> = vec![];
-        let s = Series::new(i.as_str(), v1);
-        hm.entry(i).or_insert(s);
-    }
-
+fn fillseries(data: Vec<Task>, hm: &mut HashMap<String, Series>) -> &mut HashMap<String, Series> {
     for i in data {
         for iii in &i.fields {
             let a = iii.name.clone();
@@ -226,6 +157,40 @@ async fn main() -> Result<(), CliError> {
             }
         }
     }
+    hm
+}
+
+#[tokio::main]
+async fn main() -> Result<(), CliError> {
+    let w: u64 = 1;
+    let file = "Config.toml";
+    let conf = config::confload(file)?;
+    let url = conf.baseurl;
+    let urlget = conf.urlget;
+    let urlput = conf.urlput;
+    let username = conf.username;
+    let password = conf.password;
+    let checkmode = conf.checkmode;
+
+    let geturl = format!("{}{}{}", url, urlput, urlget);
+    let data = httprequests::get_data(&geturl, &username, &password).await?;
+    let mut headers = vec!["".to_owned()];
+
+    if let Some(ii) = data.clone().into_iter().next() {
+        for iii in ii.fields {
+            headers.push(iii.name.to_owned())
+        }
+    };
+
+    let mut hm: HashMap<String, Series> = HashMap::from([]);
+
+    for header in headers {
+        let v1: Vec<String> = vec![];
+        let series = Series::new(header.as_str(), v1);
+        hm.entry(header).or_insert(series);
+    }
+
+    let hm = fillseries(data, &mut hm).clone();
 
     let mut df2 = DataFrame::default();
     for (_i, v) in hm {
@@ -233,41 +198,8 @@ async fn main() -> Result<(), CliError> {
         df2 = concat_df_horizontal(&[df2.clone(), df.clone()])?;
     }
     println!("{:?}", df2);
-    let mut out = df2
-        .clone()
-        .lazy()
-        .filter(
-            col("APP_INSTANCE_NAME")
-                .str()
-                .contains(lit("CAccount"), false),
-        )
-        .filter(
-            col("Process Definition.Tasks.Task Name")
-                .str()
-                .contains(lit("Update"), false),
-        )
-        .with_columns([col("Process Instance.Task Information.Creation Date")
-            .str()
-            .strptime(
-                DataType::Datetime(TimeUnit::Milliseconds, None),
-                StrptimeOptions {
-                    format: Some("%Y-%m-%dT%H:%M:%SZ".to_owned()),
-                    strict: false,
-                    exact: false,
-                    cache: false,
-                },
-                lit("raise"),
-            )])
-        .with_columns([col("Process Instance.Task Details.Key").cast(DataType::Int64)])
-        .sort(
-            "Process Instance.Task Information.Creation Date",
-            SortOptions {
-                descending: false,
-                nulls_last: true,
-                ..Default::default()
-            },
-        )
-        .collect()?;
+
+    let mut out = datapolars::get_data(df2)?;
     let _ne = out.drop_in_place("");
 
     println!("{:?}", out);

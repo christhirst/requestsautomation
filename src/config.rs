@@ -63,6 +63,27 @@ pub fn load_or_initialize(filename: &str) -> Result<AppConfig, ConfigError> {
     Ok(config)
 }
 
+pub fn confload(file: &str) -> Result<AppConfig, ConfigError> {
+    let config: AppConfig = match load_or_initialize(file) {
+        Ok(v) => v,
+        Err(err) => {
+            /* match err {
+                ConfigError::IoError(err) => {
+                    eprintln!("An error occurred while loading the config: {err}");
+                }
+                ConfigError::InvalidConfig(err) => {
+                    eprintln!("An error occurred while parsing the config:");
+                    eprintln!("{err}");
+                }
+            } */
+            return Err(err.into());
+        }
+    };
+
+    Ok(config)
+    //println!("{:?}", config);
+}
+
 #[cfg(test)]
 mod tests {
     /* use super::*;
