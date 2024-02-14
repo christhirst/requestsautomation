@@ -9,19 +9,19 @@ use polars::{
     },
 };
 
-pub fn get_data(df: DataFrame) -> Result<DataFrame, PolarsError> {
-    let mut out = df
+pub fn get_data(df: DataFrame, filter1: &str, filter2: &str) -> Result<DataFrame, PolarsError> {
+    let out = df
         .clone()
         .lazy()
         .filter(
-            polars::lazy::dsl::col("APP_INSTANCE_NAME")
+            polars::lazy::dsl::col("Objects.Name")
                 .str()
-                .contains(lit("CAccount"), false),
+                .contains(lit(filter1), false),
         )
         .filter(
             col("Process Definition.Tasks.Task Name")
                 .str()
-                .contains(lit("Update"), false),
+                .contains(lit(filter2), false),
         )
         .with_columns([col("Process Instance.Task Information.Creation Date")
             .str()

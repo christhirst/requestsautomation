@@ -2,22 +2,15 @@ mod config;
 mod datapolars;
 mod httprequests;
 
-use chrono::prelude::*;
-use config::{load_or_initialize, AppConfig, ConfigError};
+use config::ConfigError;
 use polars::functions::concat_df_horizontal;
-use polars::lazy::dsl::StrptimeOptions;
 use polars::prelude::*;
-use polars::{
-    chunked_array::ops::SortOptions,
-    datatypes::DataType,
-    lazy::{dsl::col, frame::IntoLazy},
-};
 
 //polars::prelude::NamedFrom<std::vec::Vec<serde_json::Value>
 use reqwest::{
     self,
     header::{ACCEPT, CONTENT_TYPE},
-    Client, Error as rError,
+    Error as rError,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -162,7 +155,6 @@ fn fillseries(data: Vec<Task>, hm: &mut HashMap<String, Series>) -> &mut HashMap
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
-    let w: u64 = 1;
     let file = "Config.toml";
     let conf = config::confload(file)?;
     let url = conf.baseurl;
@@ -170,6 +162,8 @@ async fn main() -> Result<(), CliError> {
     let urlput = conf.urlput;
     let username = conf.username;
     let password = conf.password;
+    let filter1 = conf.filter1;
+    let filter2 = conf.filter2;
     let checkmode = conf.checkmode;
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
@@ -183,6 +177,7 @@ async fn main() -> Result<(), CliError> {
     };
 
     let mut hm: HashMap<String, Series> = HashMap::from([]);
+    println!("{:?}", headers);
 
     for header in headers {
         let v1: Vec<String> = vec![];
@@ -199,7 +194,18 @@ async fn main() -> Result<(), CliError> {
     }
     println!("{:?}", df2);
 
-    let mut out = datapolars::get_data(df2)?;
+    let df = df2
+        .clone()
+        .lazy()
+        .select([
+            (col("Process Instance.Task Information.Creation Date")),
+            (col("Objects.Name")),
+            (col("Process Instance.Task Details.Key")),
+            (col("Process Definition.Tasks.Task Name")),
+        ])
+        .collect()?;
+
+    let mut out = datapolars::get_data(df, &filter1, &filter2)?;
     let _ne = out.drop_in_place("");
 
     println!("{:?}", out);

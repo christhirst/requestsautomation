@@ -27,6 +27,8 @@ pub struct AppConfig {
     pub password: String,
     pub baseurl: String,
     pub urlget: String,
+    pub filter1: String,
+    pub filter2: String,
     pub urlput: String,
     pub checkmode: bool,
 }
@@ -38,6 +40,8 @@ impl Default for AppConfig {
             password: "admin".to_string(),
             baseurl: "http://0.0.0.0:389".to_string(),
             urlget: "/".to_string(),
+            filter1: "test".to_string(),
+            filter2: "test".to_string(),
             urlput: "".to_string(),
             checkmode: true,
         }
@@ -76,7 +80,7 @@ pub fn confload(file: &str) -> Result<AppConfig, ConfigError> {
                     eprintln!("{err}");
                 }
             } */
-            return Err(err.into());
+            return Err(err);
         }
     };
 
