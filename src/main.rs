@@ -2,6 +2,7 @@ mod config;
 mod datapolars;
 mod httprequests;
 
+use axum::{extract::Query, response::IntoResponse, routing::post, Json, Router};
 use config::ConfigError;
 use polars::functions::concat_df_horizontal;
 use polars::prelude::*;
@@ -10,11 +11,12 @@ use polars::prelude::*;
 use reqwest::{
     self,
     header::{ACCEPT, CONTENT_TYPE},
-    Error as rError,
+    Error as rError, StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::{collections::HashMap, thread, time::Duration};
+use tracing::{info, subscriber::SetGlobalDefaultError};
 
 use crate::datapolars::pl_vstr_to_selects;
 
@@ -101,6 +103,7 @@ pub enum CliError {
     FailedToCreatePool(String),
     PE(PolarsError),
     RError(rError),
+    GlobalDefaultError(SetGlobalDefaultError),
 }
 impl From<PolarsError> for CliError {
     fn from(err: PolarsError) -> CliError {
@@ -120,26 +123,11 @@ impl From<rError> for CliError {
     }
 }
 
-/* fn confload(file: &str) -> Result<AppConfig, CliError> {
-    let config: AppConfig = match load_or_initialize(file) {
-        Ok(v) => v,
-        Err(err) => {
-            /* match err {
-                ConfigError::IoError(err) => {
-                    eprintln!("An error occurred while loading the config: {err}");
-                }
-                ConfigError::InvalidConfig(err) => {
-                    eprintln!("An error occurred while parsing the config:");
-                    eprintln!("{err}");
-                }
-            } */
-            return Err(err.into());
-        }
-    };
-
-    Ok(config)
-    //println!("{:?}", config);
-} */
+impl From<SetGlobalDefaultError> for CliError {
+    fn from(err: SetGlobalDefaultError) -> CliError {
+        CliError::GlobalDefaultError(err)
+    }
+}
 
 fn fillseries(data: Vec<Task>, hm: &mut HashMap<String, Series>) -> &mut HashMap<String, Series> {
     for i in data {
@@ -155,8 +143,21 @@ fn fillseries(data: Vec<Task>, hm: &mut HashMap<String, Series>) -> &mut HashMap
     hm
 }
 
+async fn search_handler() -> Json<Link> {
+    // Process query parameters...
+    let t = Link {
+        rel: "todo!()".to_string(),
+        href: "todo!()".to_string(),
+    };
+    Json(t)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
+    let subscriber = tracing_subscriber::FmtSubscriber::new();
+    // use that subscriber to process traces emitted after this point
+    tracing::subscriber::set_global_default(subscriber)?;
+
     let file = "Config.toml";
     let conf = config::confload(file)?;
     let url = conf.baseurl;
@@ -168,6 +169,7 @@ async fn main() -> Result<(), CliError> {
     let filter1 = conf.filter1;
     let filter2 = conf.filter2;
     let checkmode = conf.checkmode;
+    let printmode = conf.printmode;
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
     let data = httprequests::get_data(&geturl, &username, &password, entries).await?;
@@ -180,7 +182,7 @@ async fn main() -> Result<(), CliError> {
     };
 
     let mut hm: HashMap<String, Series> = HashMap::from([]);
-    println!("{:?}", headers);
+    info!("headers: {:?}", headers);
 
     for header in headers {
         let v1: Vec<String> = vec![];
@@ -202,38 +204,58 @@ async fn main() -> Result<(), CliError> {
         "Objects.Name",
         "Process Instance.Task Details.Key",
         "Process Definition.Tasks.Task Name",
+        "Process Instance.Task Information.Target User",
     ];
     let df = pl_vstr_to_selects(df2, ss)?;
 
-    let mut out = datapolars::get_data(df, &filter1, &filter2)?;
-    let _ne = out.drop_in_place("");
+    println!("{:?}", df);
 
+    let out = datapolars::get_data(df, &filter1, &filter2)?;
     println!("{:?}", out);
+    //let _ne = out.drop_in_place("");
+
     let tasks = out["Process Instance.Task Details.Key"].as_list();
     let json_data = r#"{"action": "retry"}"#;
     let client = reqwest::Client::new();
+
+    /* let app = Router::new()
+        // `POST /users` goes to `create_user`
+        .route("/users", post(search_handler));
+
+    // run our app with hyper, listening globally on port 3000
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();*/
+
     for i in &tasks {
         if checkmode {
             break;
         }
 
-        let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
-        let id = o.get(0).unwrap();
-        println!("{}", id);
+        if printmode {
+            //et list = tasks.
+        } else {
+            let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
+            let id = o.get(0).unwrap();
+            info!("{}", id);
 
-        //let mut owned_string: String = "http://localhost:3001/provtasks/".to_owned();
-        let puturl = format!("{}{}{}{}", url, urlput, "/", id);
-        let response = client
-            .put(puturl)
-            .body(json_data.to_owned())
-            .header(CONTENT_TYPE, "application/json")
-            .header(ACCEPT, "application/json")
-            .basic_auth(username.clone(), Some(password.clone()))
-            .send()
-            .await?;
-        let json: Resp = response.json().await?;
-        println!("{:?}", json);
+            //let mut owned_string: String = "http://localhost:3001/provtasks/".to_owned();
+            let puturl = format!("{}{}{}{}", url, urlput, "/", id);
+            let response = client
+                .put(puturl)
+                .body(json_data.to_owned())
+                .header(CONTENT_TYPE, "application/json")
+                .header(ACCEPT, "application/json")
+                .basic_auth(username.clone(), Some(password.clone()))
+                .timeout(Duration::from_secs(1))
+                .send()
+                .await?;
+            let json: Resp = response.json().await?;
+
+            info!("{}", json.id);
+            thread::sleep(Duration::from_secs(5));
+        }
     }
+    println!("{}", "");
 
     Ok(())
 }

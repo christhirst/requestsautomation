@@ -13,10 +13,12 @@ pub async fn get_data(
 ) -> Result<Vec<Task>, CliError> {
     let client = reqwest::Client::new();
     let data = fetchdata(&client, url, username, password).await?;
+    let gotcount = data.count;
 
     let mut alltasks: Vec<Task> = vec![];
 
     let mut count = 0;
+    print!("{}", count as f32 / gotcount as f32);
 
     let link = data.links.get(3);
     let next = link.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;

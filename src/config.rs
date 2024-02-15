@@ -31,6 +31,7 @@ pub struct AppConfig {
     pub filter1: String,
     pub filter2: String,
     pub urlput: String,
+    pub printmode: bool,
     pub checkmode: bool,
 }
 
@@ -45,6 +46,7 @@ impl Default for AppConfig {
             filter1: "test".to_string(),
             filter2: "test".to_string(),
             urlput: "".to_string(),
+            printmode: true,
             checkmode: true,
         }
     }

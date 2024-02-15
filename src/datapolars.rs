@@ -54,15 +54,6 @@ pub fn pl_vstr_to_selects(df: DataFrame, filter: Vec<&str>) -> Result<DataFrame,
         eer.push(col(f))
     }
 
-    let df = df
-        .clone()
-        .lazy()
-        .select([
-            (col("Process Instance.Task Information.Creation Date")),
-            (col("Objects.Name")),
-            (col("Process Instance.Task Details.Key")),
-            (col("Process Definition.Tasks.Task Name")),
-        ])
-        .collect()?;
+    let df = df.clone().lazy().select(eer).collect()?;
     Ok(df)
 }
