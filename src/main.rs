@@ -275,9 +275,11 @@ async fn main() -> Result<(), CliError> {
                 .timeout(Duration::from_secs(1))
                 .send()
                 .await?;
-            let json: Resp = response.json().await?;
+            let text = response.text().await?;
+            info!("{:?}", text);
+            //let json: Resp = response.json().await?;
 
-            info!("{}", json.id);
+            //info!("{}", json.id);
             thread::sleep(Duration::from_secs(1));
         }
     }
