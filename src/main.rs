@@ -270,7 +270,7 @@ async fn main() -> Result<(), CliError> {
                 .put(puturl)
                 .body(json_data.to_owned())
                 .header(CONTENT_TYPE, "application/json")
-                .header(ACCEPT, "application/json")
+                .header("X-Requested-By", "rust")
                 .basic_auth(username.clone(), Some(password.clone()))
                 .timeout(Duration::from_secs(1))
                 .send()
