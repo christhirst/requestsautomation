@@ -15,7 +15,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, thread, time::Duration};
+use std::{collections::HashMap, fs, thread, time::Duration};
 use tracing::{info, subscriber::SetGlobalDefaultError};
 
 use crate::datapolars::pl_vstr_to_selects;
@@ -133,23 +133,26 @@ fn fillseries(data: Vec<Task>, hm: &mut HashMap<String, Series>) -> &mut HashMap
     for i in data {
         for iii in &i.fields {
             let a = iii.name.clone();
-            let s = Series::new(&a, vec![iii.value.to_string().clone()]);
-            let oo = hm.get_mut(&a);
-            if let Some(x) = oo {
-                let _ = x.append(&s);
-            }
+            match iii.value.clone() {
+                Value::Number(v) => {
+                    let s = Series::new(&a, vec![v.to_string()]);
+                    let oo = hm.get_mut(&a);
+                    if let Some(x) = oo {
+                        let _ = x.append(&s);
+                    }
+                }
+                Value::String(v) => {
+                    let s = Series::new(&a, vec![v.as_str()]);
+                    let oo = hm.get_mut(&a);
+                    if let Some(x) = oo {
+                        let _ = x.append(&s);
+                    }
+                }
+                _ => panic!("Type is wrong in value:Value matching"),
+            };
         }
     }
     hm
-}
-
-async fn search_handler() -> Json<Link> {
-    // Process query parameters...
-    let t = Link {
-        rel: "todo!()".to_string(),
-        href: "todo!()".to_string(),
-    };
-    Json(t)
 }
 
 #[tokio::main]
@@ -215,6 +218,7 @@ async fn main() -> Result<(), CliError> {
     //let _ne = out.drop_in_place("");
 
     let tasks = out["Process Instance.Task Details.Key"].as_list();
+    let ids = out["Process Instance.Task Information.Target User"].as_list();
     let json_data = r#"{"action": "retry"}"#;
     let client = reqwest::Client::new();
 
@@ -226,14 +230,24 @@ async fn main() -> Result<(), CliError> {
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();*/
 
-    for i in &tasks {
-        if checkmode {
-            break;
-        }
+    if printmode {
+        let mut dfa = out
+            .clone()
+            .lazy()
+            .select([col("Process Instance.Task Information.Target User")])
+            .collect()?;
 
-        if printmode {
-            //et list = tasks.
-        } else {
+        let mut file = std::fs::File::create("ids.csv").unwrap();
+        CsvWriter::new(&mut file).finish(&mut dfa).unwrap();
+        let contents =
+            fs::read_to_string("ids.csv").expect("Should have been able to read the file");
+
+        println!("{}", contents)
+    } else {
+        for i in &tasks {
+            if checkmode {
+                break;
+            }
             let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
             let id = o.get(0).unwrap();
             info!("{}", id);
@@ -252,10 +266,9 @@ async fn main() -> Result<(), CliError> {
             let json: Resp = response.json().await?;
 
             info!("{}", json.id);
-            thread::sleep(Duration::from_secs(5));
+            thread::sleep(Duration::from_secs(1));
         }
     }
-    println!("{}", "");
 
     Ok(())
 }
