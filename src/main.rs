@@ -15,7 +15,7 @@ use reqwest::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fs, thread, time::Duration};
+use std::{collections::HashMap, fmt, fs, path::Display, thread, time::Duration};
 use tracing::{info, subscriber::SetGlobalDefaultError};
 
 use crate::datapolars::pl_vstr_to_selects;
@@ -42,6 +42,17 @@ pub struct Root {
     pub has_more: bool,
     pub total_result: i64,
     pub tasks: Vec<Task>,
+}
+
+impl fmt::Display for Root {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Write strictly the first element into the supplied output
+        // stream: `f`. Returns `fmt::Result` which indicates whether the
+        // operation succeeded or failed. Note that `write!` uses syntax which
+        // is very similar to `println!`.
+        write!(f, "{}", self.count)
+    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -254,6 +265,7 @@ async fn main() -> Result<(), CliError> {
 
             //let mut owned_string: String = "http://localhost:3001/provtasks/".to_owned();
             let puturl = format!("{}{}{}{}", url, urlput, "/", id);
+            println!("{}", puturl);
             let response = client
                 .put(puturl)
                 .body(json_data.to_owned())
