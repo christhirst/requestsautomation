@@ -2,20 +2,15 @@ mod config;
 mod datapolars;
 mod httprequests;
 
-use axum::{extract::Query, response::IntoResponse, routing::post, Json, Router};
 use config::ConfigError;
 use polars::functions::concat_df_horizontal;
 use polars::prelude::*;
 
 //polars::prelude::NamedFrom<std::vec::Vec<serde_json::Value>
-use reqwest::{
-    self,
-    header::{ACCEPT, CONTENT_TYPE},
-    Error as rError, StatusCode,
-};
+use reqwest::{self, header::CONTENT_TYPE, Error as rError};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fmt, fs, path::Display, thread, time::Duration};
+use std::{collections::HashMap, fmt, fs, thread, time::Duration, vec};
 use tracing::{info, subscriber::SetGlobalDefaultError};
 
 use crate::datapolars::pl_vstr_to_selects;
@@ -255,6 +250,7 @@ async fn main() -> Result<(), CliError> {
 
         println!("{}", contents)
     } else {
+        let mut tasksdone: Vec<Resp> = vec![];
         for i in &tasks {
             if checkmode {
                 break;
@@ -275,13 +271,13 @@ async fn main() -> Result<(), CliError> {
                 .timeout(Duration::from_secs(1))
                 .send()
                 .await?;
-            let text = response.text().await?;
-            info!("{:?}", text);
-            //let json: Resp = response.json().await?;
-
+            let json: Resp = response.json().await?;
+            tasksdone.push(json);
+            //info!("{:?}", json);
             //info!("{}", json.id);
             thread::sleep(Duration::from_secs(1));
         }
+        info!("{:?}", tasksdone);
     }
 
     Ok(())
