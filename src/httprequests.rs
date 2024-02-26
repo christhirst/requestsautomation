@@ -21,16 +21,27 @@ pub async fn get_data(
     let mut more = data.has_more;
 
     let mut count = 0;
-    let link = data.links.get(3);
-    let next = link.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
-    let mut uri = "".to_owned();
-    while more && next.rel == "next" && count < fetched {
-        if next.rel == "next" {
-            uri = next.href.clone();
+    let mut next_link = "".to_owned();
+
+    for l in data.links {
+        if l.rel == "next" {
+            next_link = l.href;
         }
-        let mut data = fetchdata(&client, &url, username, password).await?;
+    }
+
+    //let link = data.links.get(3);
+    //let next = link.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
+
+    while more || count < fetched {
+        let mut data = fetchdata(&client, &next_link, username, password).await?;
         alltasks.append(&mut data.tasks);
         more = data.has_more;
+
+        for l in data.links {
+            if l.rel == "next" {
+                next_link = l.href;
+            }
+        }
 
         count += 1;
         println!("{}", count as f32 / gotcount as f32);
