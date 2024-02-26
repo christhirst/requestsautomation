@@ -243,11 +243,6 @@ async fn main() -> Result<(), CliError> {
     let mut out = datapolars::get_data(df, &filter1, &filter2)?;
     println!("{:?}", out);
 
-    /*  let mut file = std::fs::File::create("path.csv").unwrap();
-    CsvWriter::new(&mut file).finish(&mut out.clone()).unwrap(); */
-
-    //let _ne = out.drop_in_place("");
-
     let tasks = out["Process Instance.Task Details.Key"].as_list();
     let ids = out["Process Instance.Task Information.Target User"].as_list();
     let json_data = r#"{"action": "retry"}"#;
@@ -293,7 +288,6 @@ async fn main() -> Result<(), CliError> {
 
             let mut file = std::fs::File::create("path.csv").unwrap();
             CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
-            println!("{:?}", "eeeeeeeeeeeeeeeee");
 
             let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
             let id = o.get(0).unwrap();
@@ -330,7 +324,6 @@ async fn main() -> Result<(), CliError> {
             let id = o.get(0).unwrap();
             info!("{}", id);
 
-            //let mut owned_string: String = "http://localhost:3001/provtasks/".to_owned();
             let puturl = format!("{}{}{}{}", url, urlput, "/", id);
             println!("{}", puturl);
 
