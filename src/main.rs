@@ -2,12 +2,13 @@ mod config;
 mod datapolars;
 mod httprequests;
 
+use axum::body;
 use config::ConfigError;
 use polars::functions::concat_df_horizontal;
 use polars::prelude::*;
 
 //polars::prelude::NamedFrom<std::vec::Vec<serde_json::Value>
-use reqwest::{self, header::CONTENT_TYPE, Error as rError};
+use reqwest::{self, header::CONTENT_TYPE, Client, Error as rError, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, fmt, fs, thread, time::Duration, vec};
@@ -161,6 +162,25 @@ fn fillseries(data: Vec<Task>, hm: &mut HashMap<String, Series>) -> &mut HashMap
     hm
 }
 
+async fn retrycall(
+    client: Client,
+    url: String,
+    body: String,
+    username: String,
+    password: String,
+) -> Result<Response, CliError> {
+    let response = client
+        .put(url)
+        .body(body)
+        .header(CONTENT_TYPE, "application/json")
+        .header("X-Requested-By", "rust")
+        .basic_auth(username, Some(password))
+        .timeout(Duration::from_secs(1))
+        .send()
+        .await?;
+    Ok(response)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
     let subscriber = tracing_subscriber::FmtSubscriber::new();
@@ -179,6 +199,7 @@ async fn main() -> Result<(), CliError> {
     let filter2 = conf.filter2;
     let checkmode = conf.checkmode;
     let printmode = conf.printmode;
+    let filemode = conf.filemode;
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
     let data = httprequests::get_data(&geturl, &username, &password, entries).await?;
@@ -219,8 +240,12 @@ async fn main() -> Result<(), CliError> {
 
     println!("{:?}", df);
 
-    let out = datapolars::get_data(df, &filter1, &filter2)?;
+    let mut out = datapolars::get_data(df, &filter1, &filter2)?;
     println!("{:?}", out);
+
+    /*  let mut file = std::fs::File::create("path.csv").unwrap();
+    CsvWriter::new(&mut file).finish(&mut out.clone()).unwrap(); */
+
     //let _ne = out.drop_in_place("");
 
     let tasks = out["Process Instance.Task Details.Key"].as_list();
@@ -237,18 +262,64 @@ async fn main() -> Result<(), CliError> {
     axum::serve(listener, app).await.unwrap();*/
 
     if printmode {
+        let mut file = std::fs::File::create("path.csv").unwrap();
+        CsvWriter::new(&mut file).finish(&mut out).unwrap();
+
         let mut dfa = out
             .clone()
             .lazy()
             .select([col("Process Instance.Task Information.Target User")])
             .collect()?;
 
-        let mut file = std::fs::File::create("ids.csv").unwrap();
-        CsvWriter::new(&mut file).finish(&mut dfa).unwrap();
         let contents =
             fs::read_to_string("ids.csv").expect("Should have been able to read the file");
 
         println!("{}", contents)
+    } else if filemode {
+        let mut tasksdone: Vec<Resp> = vec![];
+
+        for i in &tasks {
+            let df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();
+            if checkmode {
+                break;
+            }
+
+            let mut df_a = df
+                .clone()
+                .lazy()
+                .slice(1, tasks.len().try_into().unwrap())
+                .collect()?;
+            println!("{:?}", df_a);
+
+            let mut file = std::fs::File::create("path.csv").unwrap();
+            CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
+            println!("{:?}", "eeeeeeeeeeeeeeeee");
+
+            let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
+            let id = o.get(0).unwrap();
+            info!("{}", id);
+
+            //let mut owned_string: String = "http://localhost:3001/provtasks/".to_owned();
+            let puturl = format!("{}{}{}{}", url, urlput, "/", id);
+            println!("{}", puturl);
+
+            let response = retrycall(
+                client.clone(),
+                puturl,
+                json_data.to_owned(),
+                username.clone(),
+                password.clone(),
+            )
+            .await?;
+            let status = response.status().as_u16();
+            if status == 200 {}
+            let json: Resp = response.json().await?;
+            tasksdone.push(json);
+            //info!("{:?}", json);
+            //info!("{}", json.id);
+            thread::sleep(Duration::from_secs(1));
+        }
+        info!("{:?}", tasksdone);
     } else {
         let mut tasksdone: Vec<Resp> = vec![];
         for i in &tasks {
@@ -262,15 +333,15 @@ async fn main() -> Result<(), CliError> {
             //let mut owned_string: String = "http://localhost:3001/provtasks/".to_owned();
             let puturl = format!("{}{}{}{}", url, urlput, "/", id);
             println!("{}", puturl);
-            let response = client
-                .put(puturl)
-                .body(json_data.to_owned())
-                .header(CONTENT_TYPE, "application/json")
-                .header("X-Requested-By", "rust")
-                .basic_auth(username.clone(), Some(password.clone()))
-                .timeout(Duration::from_secs(1))
-                .send()
-                .await?;
+
+            let response = retrycall(
+                client.clone(),
+                puturl,
+                json_data.to_owned(),
+                username.clone(),
+                password.clone(),
+            )
+            .await?;
             let json: Resp = response.json().await?;
             tasksdone.push(json);
             //info!("{:?}", json);

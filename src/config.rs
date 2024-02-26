@@ -33,6 +33,7 @@ pub struct AppConfig {
     pub urlput: String,
     pub printmode: bool,
     pub checkmode: bool,
+    pub filemode: bool,
 }
 
 impl Default for AppConfig {
@@ -48,6 +49,7 @@ impl Default for AppConfig {
             urlput: "".to_string(),
             printmode: true,
             checkmode: true,
+            filemode: true,
         }
     }
 }
