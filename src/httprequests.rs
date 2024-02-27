@@ -6,13 +6,13 @@ use reqwest::{
 use crate::{CliError, Root, Task};
 
 pub async fn get_data(
+    client: &Client,
     url: &str,
     username: &str,
     password: &str,
     fetched: u32,
 ) -> Result<Vec<Task>, CliError> {
-    let client = reqwest::Client::new();
-    let mut data = fetchdata(&client, url, username, password).await?;
+    let mut data = fetchdata(client, url, username, password).await?;
     println!("Entires in Backend: {}", data.count);
     let gotcount = data.count;
     let mut alltasks: Vec<Task> = vec![];
@@ -33,7 +33,7 @@ pub async fn get_data(
     //let next = link.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
 
     while more && count < fetched {
-        let mut data = fetchdata(&client, &next_link, username, password).await?;
+        let mut data = fetchdata(client, &next_link, username, password).await?;
         alltasks.append(&mut data.tasks);
         more = data.has_more;
 
