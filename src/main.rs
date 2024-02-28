@@ -228,6 +228,8 @@ async fn main() -> Result<(), CliError> {
     let printmode = conf.printmode;
     let filemode = conf.filemode;
 
+    info!("Version: {:?}", "v0.0.14");
+
     let geturl = format!("{}{}{}", url, urlput, urlget);
     let client = reqwest::Client::new();
     let json_data = r#"{"action": "retry"}"#;
@@ -261,7 +263,7 @@ async fn main() -> Result<(), CliError> {
             )
             .await?;
             let status = response.status().as_u16();
-            let length: u32 = tasksl.len().try_into().unwrap();
+            let length = df["Process Instance.Task Details.Key"].len() as u32;
             if status == 200 {
                 let mut df_a = df.clone().lazy().slice(1, length - 1).collect()?;
                 let mut file = std::fs::File::create("path.csv").unwrap();
