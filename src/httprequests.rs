@@ -41,7 +41,6 @@ pub async fn get_data(
             if l.rel == "next" {
                 next_link = l.href;
             }
-            println!("{next_link}")
         }
 
         count += 1;

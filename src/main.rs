@@ -253,8 +253,6 @@ async fn main() -> Result<(), CliError> {
             let puturl = format!("{}{}{}{}", url, urlput, "/", id);
             println!("{}", puturl);
 
-            println!("{:?}", username.clone());
-
             let response = retrycall(
                 &client,
                 puturl,
@@ -270,7 +268,6 @@ async fn main() -> Result<(), CliError> {
                     .lazy()
                     .slice(1, tasksl.len().try_into().unwrap())
                     .collect()?;
-                println!("{:?}", df_a);
 
                 let mut file = std::fs::File::create("path.csv").unwrap();
                 CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
@@ -326,6 +323,11 @@ async fn main() -> Result<(), CliError> {
                 .lazy()
                 .select([col("Process Instance.Task Information.Target User")])
                 .collect()?;
+
+            let mut file = std::fs::File::create("ids.csv").unwrap();
+            CsvWriter::new(&mut file).finish(&mut dfa).unwrap();
+            println!("{:?}", dfa);
+            println!("{:?}", ids);
 
             let contents =
                 fs::read_to_string("ids.csv").expect("Should have been able to read the file");
