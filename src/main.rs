@@ -249,7 +249,6 @@ async fn main() -> Result<(), CliError> {
             let id = o.get(0).unwrap();
             info!("{}", id);
 
-            //let mut owned_string: String = "http://localhost:3001/provtasks/".to_owned();
             let puturl = format!("{}{}{}{}", url, urlput, "/", id);
             println!("{}", puturl);
 
@@ -262,13 +261,9 @@ async fn main() -> Result<(), CliError> {
             )
             .await?;
             let status = response.status().as_u16();
+            let length: u32 = tasksl.len().try_into().unwrap();
             if status == 200 {
-                let mut df_a = df
-                    .clone()
-                    .lazy()
-                    .slice(1, tasksl.len().try_into().unwrap())
-                    .collect()?;
-
+                let mut df_a = df.clone().lazy().slice(1, length - 1).collect()?;
                 let mut file = std::fs::File::create("path.csv").unwrap();
                 CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
                 let json: Resp = response.json().await?;
