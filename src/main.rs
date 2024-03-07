@@ -240,13 +240,11 @@ async fn main() -> Result<(), CliError> {
         let tasksl = CsvReader::from_path("path.csv").unwrap().finish().unwrap()
             ["Process Instance.Task Details.Key"]
             .as_list();
-
+        let mut retry: i32 = 0;
         for i in &tasksl {
-            let df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();
             if checkmode {
                 break;
             }
-
             let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
             let id = o.get(0).unwrap();
             info!("{}", id);
@@ -254,22 +252,40 @@ async fn main() -> Result<(), CliError> {
             let puturl = format!("{}{}{}{}", url, urlput, "/", id);
             println!("{}", puturl);
 
-            let response = retrycall(
-                &client,
-                puturl,
-                json_data.to_owned(),
-                username.clone(),
-                password.clone(),
-            )
-            .await?;
-            let status = response.status().as_u16();
+            let mut status: u16 = 0;
+            let mut json: Resp;
+            while retry < 0 || status != 200 {
+                retry += 1;
+                match retrycall(
+                    &client,
+                    puturl.clone(),
+                    json_data.to_owned(),
+                    username.clone(),
+                    password.clone(),
+                )
+                .await
+                {
+                    Ok(response) => {
+                        status = response.status().as_u16();
+                        json = response.json().await?;
+                        tasksdone.push(json);
+                    }
+                    Err(e) => {
+                        print!("{e:?}");
+                        thread::sleep(Duration::from_secs(3));
+                    }
+                }
+            }
+
+            let df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();
             let length = df["Process Instance.Task Details.Key"].len() as u32;
+
             if status == 200 {
                 let mut df_a = df.clone().lazy().slice(1, length - 1).collect()?;
                 let mut file = std::fs::File::create("path.csv").unwrap();
                 CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
-                let json: Resp = response.json().await?;
-                tasksdone.push(json);
+
+                retry += 1;
             }
 
             thread::sleep(Duration::from_secs(1));
