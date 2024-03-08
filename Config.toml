@@ -1,8 +1,9 @@
 username = "testuser"
 password = "testPW"
 baseurl = "http://localhost:8000"
-urlget = ""
+urlget = "/"
 urlput = "/users"
+urlfilter =  [[ "aa::bb::cc", "AA" ]]
 printmode = false
 checkmode = false
 filemode = true

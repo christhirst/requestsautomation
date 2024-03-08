@@ -11,7 +11,14 @@ use polars::prelude::*;
 use reqwest::{self, header::CONTENT_TYPE, Client, Error as rError, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fmt, fs, thread, time::Duration, vec};
+use std::{
+    collections::HashMap,
+    fmt,
+    fs::{self, OpenOptions},
+    thread,
+    time::Duration,
+    vec,
+};
 use tracing::{info, subscriber::SetGlobalDefaultError};
 
 use crate::datapolars::pl_vstr_to_selects;
@@ -38,6 +45,25 @@ pub struct Root {
     pub has_more: bool,
     pub total_result: i64,
     pub tasks: Vec<Task>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Urlfilter {
+    pub f1: F1,
+    pub f2: F2,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct F1 {
+    pub test: Vec<String>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct F2 {
+    pub test: Vec<String>,
 }
 
 impl fmt::Display for Root {
@@ -208,6 +234,17 @@ async fn getheaders(
     Ok(hm)
 }
 
+async fn urlbuilder(urlsnippets: &[&str], urlfilter: &Vec<String>) -> String {
+    let mut url: String = "".to_string();
+    for i in urlsnippets {
+        url = format!("{}{}", url, i);
+    }
+    for i in urlfilter {
+        url = format!("{}{}", url, i);
+    }
+    url
+}
+
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
     let subscriber = tracing_subscriber::FmtSubscriber::new();
@@ -219,6 +256,7 @@ async fn main() -> Result<(), CliError> {
     let url = conf.baseurl;
     let urlget = conf.urlget;
     let urlput = conf.urlput;
+    let urlfilter = conf.urlfilter;
     let username = conf.username;
     let password = conf.password;
     let entries = conf.entries;
@@ -231,6 +269,7 @@ async fn main() -> Result<(), CliError> {
     info!("Version: {:?}", "v0.0.14");
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
+    let urllst: Vec<&str> = vec![&url, &urlput, &urlget];
     let client = reqwest::Client::new();
     let json_data = r#"{"action": "retry"}"#;
     let mut hm = getheaders(&client, &geturl, &username, &password).await?;
@@ -292,88 +331,99 @@ async fn main() -> Result<(), CliError> {
         }
         info!("{:?}", tasksdone);
     } else {
-        let data = httprequests::get_data(&client, &geturl, &username, &password, entries).await?;
-        let hm = fillseries(data, &mut hm).clone();
+        for i in urlfilter {
+            let oo = urlbuilder(&urllst, &i);
+            let data =
+                httprequests::get_data(&client, &geturl, &username, &password, entries).await?;
+            let hm = fillseries(data, &mut hm).clone();
 
-        let mut df2 = DataFrame::default();
-        for (_i, v) in hm {
-            let df = v.into_frame();
-            df2 = concat_df_horizontal(&[df2.clone(), df.clone()])?;
-        }
-        println!("{:?}", df2);
-
-        let ss = vec![
-            "Process Instance.Task Information.Creation Date",
-            "Objects.Name",
-            "Process Instance.Task Details.Key",
-            "Process Definition.Tasks.Task Name",
-            "Process Instance.Task Information.Target User",
-        ];
-        let df = pl_vstr_to_selects(df2, ss)?;
-
-        println!("{:?}", df);
-
-        let mut out = datapolars::get_data(df, &filter1, &filter2)?;
-        println!("{:?}", out);
-
-        let tasks = out["Process Instance.Task Details.Key"].as_list();
-        let ids = out["Process Instance.Task Information.Target User"].as_list();
-
-        /* let app = Router::new()
-            // `POST /users` goes to `create_user`
-            .route("/users", post(search_handler));
-
-        // run our app with hyper, listening globally on port 3000
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-        axum::serve(listener, app).await.unwrap();*/
-
-        if printmode {
-            let mut file = std::fs::File::create("path.csv").unwrap();
-            CsvWriter::new(&mut file).finish(&mut out).unwrap();
-
-            let mut dfa = out
-                .clone()
-                .lazy()
-                .select([col("Process Instance.Task Information.Target User")])
-                .collect()?;
-
-            let mut file = std::fs::File::create("ids.csv").unwrap();
-            CsvWriter::new(&mut file).finish(&mut dfa).unwrap();
-            println!("{:?}", dfa);
-            println!("{:?}", ids);
-
-            let contents =
-                fs::read_to_string("ids.csv").expect("Should have been able to read the file");
-            let splitted: Vec<&str> = contents.split("\n").collect();
-            println!("{:?}", splitted);
-        } else {
-            let mut tasksdone: Vec<Resp> = vec![];
-            for i in &tasks {
-                if checkmode {
-                    break;
-                }
-                let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
-                let id = o.get(0).unwrap();
-                info!("{}", id);
-
-                let puturl = format!("{}{}{}{}", url, urlput, "/", id);
-                println!("{}", puturl);
-
-                let response = retrycall(
-                    &client,
-                    puturl,
-                    json_data.to_owned(),
-                    username.clone(),
-                    password.clone(),
-                )
-                .await?;
-                let json: Resp = response.json().await?;
-                tasksdone.push(json);
-                //info!("{:?}", json);
-                //info!("{}", json.id);
-                thread::sleep(Duration::from_secs(1));
+            let mut df2 = DataFrame::default();
+            for (_i, v) in hm {
+                let df = v.into_frame();
+                df2 = concat_df_horizontal(&[df2.clone(), df.clone()])?;
             }
-            info!("{:?}", tasksdone);
+            println!("{:?}", df2);
+
+            let ss = vec![
+                "Process Instance.Task Information.Creation Date",
+                "Objects.Name",
+                "Process Instance.Task Details.Key",
+                "Process Definition.Tasks.Task Name",
+                "Process Instance.Task Information.Target User",
+            ];
+            let df = pl_vstr_to_selects(df2, ss)?;
+
+            println!("{:?}", df);
+
+            let mut out = datapolars::get_data(df, &filter1, &filter2)?;
+            println!("{:?}", out);
+
+            let tasks = out["Process Instance.Task Details.Key"].as_list();
+            let ids = out["Process Instance.Task Information.Target User"].as_list();
+
+            /* let app = Router::new()
+                // `POST /users` goes to `create_user`
+                .route("/users", post(search_handler));
+
+            // run our app with hyper, listening globally on port 3000
+            let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+            axum::serve(listener, app).await.unwrap();*/
+
+            if printmode {
+                let mut file = std::fs::File::create("path.csv").unwrap();
+                CsvWriter::new(&mut file).finish(&mut out).unwrap();
+
+                let mut dfa = out
+                    .clone()
+                    .lazy()
+                    .select([col("Process Instance.Task Information.Target User")])
+                    .collect()?;
+
+                let file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("path.csv")
+                    .unwrap();
+                csv::Writer::from_writer(file);
+
+                let mut file = std::fs::File::create("ids.csv").unwrap();
+                CsvWriter::new(&mut file).finish(&mut dfa).unwrap();
+                println!("{:?}", dfa);
+                println!("{:?}", ids);
+
+                let contents =
+                    fs::read_to_string("ids.csv").expect("Should have been able to read the file");
+                let splitted: Vec<&str> = contents.split("\n").collect();
+                println!("{:?}", splitted);
+            } else {
+                let mut tasksdone: Vec<Resp> = vec![];
+                for i in &tasks {
+                    if checkmode {
+                        break;
+                    }
+                    let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
+                    let id = o.get(0).unwrap();
+                    info!("{}", id);
+
+                    let puturl = format!("{}{}{}{}", url, urlput, "/", id);
+                    println!("{}", puturl);
+
+                    let response = retrycall(
+                        &client,
+                        puturl,
+                        json_data.to_owned(),
+                        username.clone(),
+                        password.clone(),
+                    )
+                    .await?;
+                    let json: Resp = response.json().await?;
+                    tasksdone.push(json);
+                    //info!("{:?}", json);
+                    //info!("{}", json.id);
+                    thread::sleep(Duration::from_secs(1));
+                }
+                info!("{:?}", tasksdone);
+            }
         }
     }
     Ok(())

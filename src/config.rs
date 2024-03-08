@@ -1,4 +1,4 @@
-use std::{fs, io, path::Path};
+use std::{collections::HashMap, fs, io, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -27,6 +27,7 @@ pub struct AppConfig {
     pub password: String,
     pub baseurl: String,
     pub urlget: String,
+    pub urlfilter: Vec<Vec<String>>,
     pub entries: u32,
     pub filter1: String,
     pub filter2: String,
@@ -36,19 +37,28 @@ pub struct AppConfig {
     pub filemode: bool,
 }
 
+/* #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Urlfilter {
+    urlfilter: HashMap<String, Vec<String>>,
+} */
+
 impl Default for AppConfig {
     fn default() -> Self {
+        let urlfilter: Vec<Vec<String>> = vec![vec!["aa::bb::cc".to_string(), "AA".to_string()]];
+
         Self {
             username: "testuser".to_string(),
-            password: "admin".to_string(),
-            baseurl: "http://0.0.0.0:389".to_string(),
+            password: "testPW".to_string(),
+            baseurl: "http://localhost:8000".to_string(),
             urlget: "/".to_string(),
-            entries: 1,
-            filter1: "test".to_string(),
-            filter2: "test".to_string(),
-            urlput: "".to_string(),
-            printmode: true,
-            checkmode: true,
+            urlfilter,
+            entries: 5,
+            filter1: "AAccount".to_string(),
+            filter2: "Update".to_string(),
+            urlput: "/users".to_string(),
+            printmode: false,
+            checkmode: false,
             filemode: true,
         }
     }
@@ -96,11 +106,10 @@ pub fn confload(file: &str) -> Result<AppConfig, ConfigError> {
 
 #[cfg(test)]
 mod tests {
-    /* use super::*;
-    use assert_fs::prelude::*;
-    use assert_fs::*;
+    use super::*;
+
     #[test]
-     fn config_parse() -> Result<(), Box<dyn std::error::Error>> {
+    fn config_parse() -> Result<(), Box<dyn std::error::Error>> {
         let filename1 = "Config.toml";
         let file = assert_fs::NamedTempFile::new("Config.toml")?;
         //file.write_str("A test\nActual content\nMore content\nAnother test")?;
@@ -113,5 +122,5 @@ mod tests {
         println!("{:?}", conf);
         assert_eq!(conf, o);
         Ok(())
-    } */
+    }
 }
