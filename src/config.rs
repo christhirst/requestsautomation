@@ -54,7 +54,7 @@ impl Default for AppConfig {
             username: "testuser".to_string(),
             password: "testPW".to_string(),
             baseurl: "http://localhost:8000".to_string(),
-            urlget: "/".to_string(),
+            urlget: "/te?".to_string(),
             urlfilter,
             entries: 5,
             filter1: "AAccount".to_string(),
