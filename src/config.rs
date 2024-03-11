@@ -60,9 +60,9 @@ impl Default for AppConfig {
             filter1: "AAccount".to_string(),
             filter2: "Update".to_string(),
             urlput: "/users".to_string(),
-            printmode: false,
+            printmode: true,
             checkmode: false,
-            filemode: true,
+            filemode: false,
         }
     }
 }

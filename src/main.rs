@@ -252,7 +252,7 @@ fn urlsbuilder(urlsnippets: &str, urlfilter: &Vec<(String, Vec<String>)>) -> Vec
     if uri.len() > 1 {
         for item1 in &uri[0] {
             for item2 in &uri[1] {
-                combined.push(format!("{}&{}", item1, item2));
+                combined.push(format!("{} AND {}", item1, item2));
             }
         }
     } else {
@@ -351,11 +351,12 @@ async fn main() -> Result<(), CliError> {
         info!("{:?}", tasksdone);
     } else {
         let oo = urlsbuilder(&url, &urlfilter);
+        info!("URLBUILDER: {:?}", &oo);
         for i in oo {
             let fileexists = Path::new("path.csv").exists();
             println!("--------------");
             let newurl = format!("{}{}", geturl, i);
-            println!("{newurl}");
+            info!("{:?}", newurl);
 
             let data =
                 httprequests::get_data(&client, &newurl, &username, &password, entries).await?;
@@ -366,7 +367,7 @@ async fn main() -> Result<(), CliError> {
                 let df = v.into_frame();
                 df2 = concat_df_horizontal(&[df2.clone(), df.clone()])?;
             }
-            println!("{:?}", df2);
+            //println!("{:?}", df2);
 
             let ss = vec![
                 "Process Instance.Task Information.Creation Date",
@@ -377,10 +378,10 @@ async fn main() -> Result<(), CliError> {
             ];
             let df = pl_vstr_to_selects(df2, ss)?;
 
-            println!("{:?}", df);
+            //println!("{:?}", df);
 
             let mut out = datapolars::get_data(df, &filter1, &filter2)?;
-            println!("{:?}", out);
+            //println!("{:?}", out);
 
             let tasks = out["Process Instance.Task Details.Key"].as_list();
             let ids = out["Process Instance.Task Information.Target User"].as_list();
@@ -399,7 +400,7 @@ async fn main() -> Result<(), CliError> {
                     .append(true)
                     .open("path.csv")
                     .unwrap();
-                file.write_all(b"\n").unwrap();
+                //file.write_all(b"\n").unwrap();
                 //let mut file = std::fs::File::create("path.csv").unwrap();
                 CsvWriter::new(&mut file)
                     .include_header(!fileexists)
@@ -423,8 +424,8 @@ async fn main() -> Result<(), CliError> {
 
                 let mut file = std::fs::File::create("ids.csv").unwrap();
                 CsvWriter::new(&mut file).finish(&mut dfa).unwrap();
-                println!("{:?}", dfa);
-                println!("{:?}", ids);
+                //println!("{:?}", dfa);
+                //println!("{:?}", ids);
 
                 let contents =
                     fs::read_to_string("ids.csv").expect("Should have been able to read the file");
