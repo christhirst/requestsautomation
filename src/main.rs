@@ -15,6 +15,8 @@ use std::{
     collections::HashMap,
     fmt,
     fs::{self, OpenOptions},
+    io::Write,
+    path::Path,
     thread,
     time::Duration,
     vec,
@@ -234,16 +236,32 @@ async fn getheaders(
     Ok(hm)
 }
 
-async fn urlbuilder(urlsnippets: &[&str], urlfilter: &Vec<String>) -> String {
-    let mut url: String = "".to_string();
-    for i in urlsnippets {
-        url = format!("{}{}", url, i);
+fn urlsbuilder(urlsnippets: &str, urlfilter: &Vec<(String, Vec<String>)>) -> Vec<String> {
+    let mut uri: Vec<Vec<String>> = Vec::new();
+    for (url, filters) in urlfilter {
+        let mut tup: Vec<String> = Vec::new();
+        for filter in filters {
+            let ent = format!("{}+eq+{}", url, filter);
+            tup.push(ent)
+            //tup[i] = ent;
+        }
+        uri.push(tup);
     }
-    for i in urlfilter {
-        url = format!("{}{}", url, i);
+    let mut combined = Vec::new();
+    //for i in &uri {
+    if uri.len() > 1 {
+        for item1 in &uri[0] {
+            for item2 in &uri[1] {
+                combined.push(format!("{}&{}", item1, item2));
+            }
+        }
+    } else {
+        combined = uri.get(0).unwrap().clone();
     }
-    url
+    combined
 }
+
+fn fileappend() {}
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
@@ -266,12 +284,13 @@ async fn main() -> Result<(), CliError> {
     let printmode = conf.printmode;
     let filemode = conf.filemode;
 
-    info!("Version: {:?}", "v0.0.14");
+    info!("Version: {:?}", "v0.0.16");
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
-    let urllst: Vec<&str> = vec![&url, &urlput, &urlget];
+    //let urllst: Vec<&str> = vec![&url, &urlput, &urlget];
     let client = reqwest::Client::new();
     let json_data = r#"{"action": "retry"}"#;
+    println!("{geturl}");
     let mut hm = getheaders(&client, &geturl, &username, &password).await?;
 
     if filemode {
@@ -331,10 +350,15 @@ async fn main() -> Result<(), CliError> {
         }
         info!("{:?}", tasksdone);
     } else {
-        for i in urlfilter {
-            let oo = urlbuilder(&urllst, &i);
+        let oo = urlsbuilder(&url, &urlfilter);
+        for i in oo {
+            let fileexists = Path::new("path.csv").exists();
+            println!("--------------");
+            let newurl = format!("{}{}", geturl, i);
+            println!("{newurl}");
+
             let data =
-                httprequests::get_data(&client, &geturl, &username, &password, entries).await?;
+                httprequests::get_data(&client, &newurl, &username, &password, entries).await?;
             let hm = fillseries(data, &mut hm).clone();
 
             let mut df2 = DataFrame::default();
@@ -370,8 +394,17 @@ async fn main() -> Result<(), CliError> {
             axum::serve(listener, app).await.unwrap();*/
 
             if printmode {
-                let mut file = std::fs::File::create("path.csv").unwrap();
-                CsvWriter::new(&mut file).finish(&mut out).unwrap();
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("path.csv")
+                    .unwrap();
+                file.write_all(b"\n").unwrap();
+                //let mut file = std::fs::File::create("path.csv").unwrap();
+                CsvWriter::new(&mut file)
+                    .include_header(!fileexists)
+                    .finish(&mut out)
+                    .unwrap();
 
                 let mut dfa = out
                     .clone()
@@ -379,12 +412,14 @@ async fn main() -> Result<(), CliError> {
                     .select([col("Process Instance.Task Information.Target User")])
                     .collect()?;
 
-                let file = OpenOptions::new()
+                fileappend();
+
+                /* let file = OpenOptions::new()
                     .create(true)
                     .append(true)
                     .open("path.csv")
                     .unwrap();
-                csv::Writer::from_writer(file);
+                csv::Writer::from_writer(file); */
 
                 let mut file = std::fs::File::create("ids.csv").unwrap();
                 CsvWriter::new(&mut file).finish(&mut dfa).unwrap();
@@ -427,4 +462,45 @@ async fn main() -> Result<(), CliError> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use self::config::load_or_initialize;
+
+    use super::*;
+
+    #[test]
+    fn urlsbuilder_test() -> Result<(), Box<dyn std::error::Error>> {
+        let filename1 = "Config.toml";
+        let conf = load_or_initialize(filename1).unwrap();
+        let urlresult = format!(
+            "{}/{}+eq+{}",
+            conf.baseurl, conf.urlfilter[0].0, conf.urlfilter[0].1[0]
+        );
+
+        let n = urlsbuilder(&conf.baseurl, &conf.urlfilter);
+        println!("{n:?}");
+        println!("--------------");
+
+        //assert_eq!(urlresult, n);
+        Ok(())
+    }
+
+    #[test]
+    fn fileappend_test() -> Result<(), Box<dyn std::error::Error>> {
+        let filename1 = "Config.toml";
+        let conf = load_or_initialize(filename1).unwrap();
+        let urlresult = format!(
+            "{}/{}+eq+{}",
+            conf.baseurl, conf.urlfilter[0].0, conf.urlfilter[0].1[0]
+        );
+
+        let n = urlsbuilder(&conf.baseurl, &conf.urlfilter);
+        println!("{n:?}");
+        println!("--------------");
+
+        //assert_eq!(urlresult, n);
+        Ok(())
+    }
 }

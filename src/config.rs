@@ -27,7 +27,7 @@ pub struct AppConfig {
     pub password: String,
     pub baseurl: String,
     pub urlget: String,
-    pub urlfilter: Vec<Vec<String>>,
+    pub urlfilter: Vec<(String, Vec<String>)>,
     pub entries: u32,
     pub filter1: String,
     pub filter2: String,
@@ -45,7 +45,10 @@ pub struct Urlfilter {
 
 impl Default for AppConfig {
     fn default() -> Self {
-        let urlfilter: Vec<Vec<String>> = vec![vec!["aa::bb::cc".to_string(), "AA".to_string()]];
+        let urlfilter = vec![(
+            "aa::bb::cc".to_string(),
+            vec!["AA".to_string(), "BB".to_string()],
+        )];
 
         Self {
             username: "testuser".to_string(),

@@ -29,9 +29,6 @@ pub async fn get_data(
         }
     }
 
-    //let link = data.links.get(3);
-    //let next = link.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
-
     while more && count < fetched {
         let mut data = fetchdata(client, &next_link, username, password).await?;
         alltasks.append(&mut data.tasks);

@@ -1,14 +1,16 @@
 username = "testuser"
 password = "testPW"
 baseurl = "http://localhost:8000"
-urlget = "/"
+urlget = "/te?"
 urlput = "/users"
-urlfilter =  [[ "aa::bb::cc", "AA" ]]
-printmode = false
+urlfilter =  [[ "aa::bb::cc", ["AA" ]],[ "ggggg", ["aa"] ]]
+#urlfilter =  [[ "aa::bb::cc", ["AA","BB","CC" ]], [ "ggggg", ["aa","bb","cc" ] ]]
+printmode = true
 checkmode = false
-filemode = true
+filemode = false
 entries = 5
 filter1 = "AAccount"
 filter2 = "Update"
 listof = "AAccount"
 attr = "Process Instance.Task Information.Target User"
+
