@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use polars::{
     chunked_array::ops::SortOptions,
     datatypes::{DataType, TimeUnit},
@@ -7,7 +9,14 @@ use polars::{
         dsl::{col, lit, StrptimeOptions},
         frame::IntoLazy,
     },
+    prelude::NamedFrom,
+    series::Series,
 };
+use reqwest::Client;
+use serde_json::Value;
+use tracing::info;
+
+use crate::{httprequests, CliError, Task};
 
 pub fn get_data(df: DataFrame, filter1: &str, filter2: &str) -> Result<DataFrame, PolarsError> {
     let out = df
@@ -56,4 +65,60 @@ pub fn pl_vstr_to_selects(df: DataFrame, filter: Vec<&str>) -> Result<DataFrame,
 
     let df = df.clone().lazy().select(eer).collect()?;
     Ok(df)
+}
+
+pub async fn getheaders(
+    client: &Client,
+    url: &str,
+    username: &str,
+    password: &str,
+) -> Result<HashMap<String, Series>, CliError> {
+    info!("headersurl: {:?}", url);
+    let data = httprequests::get_data(client, url, username, password, 1).await?;
+    let mut headers = vec!["".to_owned()];
+
+    if let Some(ii) = data.clone().into_iter().next() {
+        for iii in ii.fields {
+            headers.push(iii.name.to_owned())
+        }
+    };
+    let mut hm: HashMap<String, Series> = HashMap::from([]);
+    info!("headers: {:?}", headers);
+
+    for header in headers {
+        let v1: Vec<String> = vec![];
+        let series = Series::new(header.as_str(), v1);
+        hm.entry(header).or_insert(series);
+    }
+
+    Ok(hm)
+}
+
+pub fn fillseries(
+    data: Vec<Task>,
+    hm: &mut HashMap<String, Series>,
+) -> &mut HashMap<String, Series> {
+    for i in data {
+        for iii in &i.fields {
+            let a = iii.name.clone();
+            match iii.value.clone() {
+                Value::Number(v) => {
+                    let s = Series::new(&a, vec![v.to_string()]);
+                    let oo = hm.get_mut(&a);
+                    if let Some(x) = oo {
+                        let _ = x.append(&s);
+                    }
+                }
+                Value::String(v) => {
+                    let s = Series::new(&a, vec![v.as_str()]);
+                    let oo = hm.get_mut(&a);
+                    if let Some(x) = oo {
+                        let _ = x.append(&s);
+                    }
+                }
+                _ => panic!("Type is wrong in value:Value matching"),
+            };
+        }
+    }
+    hm
 }

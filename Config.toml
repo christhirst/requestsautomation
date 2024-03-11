@@ -1,9 +1,9 @@
 username = "testuser"
 password = "testPW"
 baseurl = "http://localhost:8000"
-urlget = "/te?"
+urlget = "/te?q=123+eq+123 AND "
 urlput = "/users"
-urlfilter =  [[ "aa::bb::cc", ["AA", "BB"]]]
+urlfilter =  [[ "aa::bb::cc", ["AA", "BB"]], [ "ggggg", ["aa","bb","cc" ] ]]
 #urlfilter =  [[ "aa::bb::cc", ["AA","BB","CC" ]], [ "ggggg", ["aa","bb","cc" ] ]]
 printmode = true
 checkmode = false

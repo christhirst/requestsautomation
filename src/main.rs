@@ -164,105 +164,6 @@ impl From<SetGlobalDefaultError> for CliError {
     }
 }
 
-fn fillseries(data: Vec<Task>, hm: &mut HashMap<String, Series>) -> &mut HashMap<String, Series> {
-    for i in data {
-        for iii in &i.fields {
-            let a = iii.name.clone();
-            match iii.value.clone() {
-                Value::Number(v) => {
-                    let s = Series::new(&a, vec![v.to_string()]);
-                    let oo = hm.get_mut(&a);
-                    if let Some(x) = oo {
-                        let _ = x.append(&s);
-                    }
-                }
-                Value::String(v) => {
-                    let s = Series::new(&a, vec![v.as_str()]);
-                    let oo = hm.get_mut(&a);
-                    if let Some(x) = oo {
-                        let _ = x.append(&s);
-                    }
-                }
-                _ => panic!("Type is wrong in value:Value matching"),
-            };
-        }
-    }
-    hm
-}
-
-async fn retrycall(
-    client: &Client,
-    url: String,
-    body: String,
-    username: String,
-    password: String,
-) -> Result<Response, CliError> {
-    let response = client
-        .put(url)
-        .body(body)
-        .header(CONTENT_TYPE, "application/json")
-        .header("X-Requested-By", "rust")
-        .basic_auth(username, Some(password))
-        .timeout(Duration::from_secs(3))
-        .send()
-        .await?;
-    Ok(response)
-}
-
-async fn getheaders(
-    client: &Client,
-    url: &str,
-    username: &str,
-    password: &str,
-) -> Result<HashMap<String, Series>, CliError> {
-    info!("headers: {:?}", url);
-    let data = httprequests::get_data(client, url, username, password, 1).await?;
-    let mut headers = vec!["".to_owned()];
-
-    if let Some(ii) = data.clone().into_iter().next() {
-        for iii in ii.fields {
-            headers.push(iii.name.to_owned())
-        }
-    };
-    let mut hm: HashMap<String, Series> = HashMap::from([]);
-    info!("headers: {:?}", headers);
-
-    for header in headers {
-        let v1: Vec<String> = vec![];
-        let series = Series::new(header.as_str(), v1);
-        hm.entry(header).or_insert(series);
-    }
-
-    Ok(hm)
-}
-
-fn urlsbuilder(urlsnippets: &str, urlfilter: &Vec<(String, Vec<String>)>) -> Vec<String> {
-    let mut uri: Vec<Vec<String>> = Vec::new();
-    for (url, filters) in urlfilter {
-        let mut tup: Vec<String> = Vec::new();
-        for filter in filters {
-            let ent = format!("{}+eq+{}", url, filter);
-            tup.push(ent)
-            //tup[i] = ent;
-        }
-        uri.push(tup);
-    }
-    let mut combined = Vec::new();
-    //for i in &uri {
-    if uri.len() > 1 {
-        for item1 in &uri[0] {
-            for item2 in &uri[1] {
-                combined.push(format!("{} AND {}", item1, item2));
-            }
-        }
-    } else {
-        combined = uri.get(0).unwrap().clone();
-    }
-    combined
-}
-
-fn fileappend() {}
-
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
     let subscriber = tracing_subscriber::FmtSubscriber::new();
@@ -284,14 +185,13 @@ async fn main() -> Result<(), CliError> {
     let printmode = conf.printmode;
     let filemode = conf.filemode;
 
-    info!("Version: {:?}", "v0.0.16");
+    info!("Version: {:?}", "v0.0.17");
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
-    //let urllst: Vec<&str> = vec![&url, &urlput, &urlget];
+
     let client = reqwest::Client::new();
     let json_data = r#"{"action": "retry"}"#;
-    println!("{geturl}");
-    let mut hm = getheaders(&client, &geturl, &username, &password).await?;
+    info!("{}", geturl);
 
     if filemode {
         let mut tasksdone: Vec<Resp> = vec![];
@@ -308,13 +208,13 @@ async fn main() -> Result<(), CliError> {
             info!("{}", id);
 
             let puturl = format!("{}{}{}{}", url, urlput, "/", id);
-            println!("{}", puturl);
+            info!("PutUrl: {}", puturl);
 
             let mut status: u16 = 0;
             let mut json: Resp;
             while retry < 0 || status != 200 {
                 retry += 1;
-                match retrycall(
+                match httprequests::retrycall(
                     &client,
                     puturl.clone(),
                     json_data.to_owned(),
@@ -329,7 +229,7 @@ async fn main() -> Result<(), CliError> {
                         tasksdone.push(json);
                     }
                     Err(e) => {
-                        print!("{e:?}");
+                        info!("Retry failed: {e:?}");
                         thread::sleep(Duration::from_secs(3));
                     }
                 }
@@ -350,49 +250,39 @@ async fn main() -> Result<(), CliError> {
         }
         info!("{:?}", tasksdone);
     } else {
-        let oo = urlsbuilder(&url, &urlfilter);
-        info!("URLBUILDER: {:?}", &oo);
-        for i in oo {
-            let fileexists = Path::new("path.csv").exists();
-            println!("--------------");
-            let newurl = format!("{}{}", geturl, i);
-            info!("{:?}", newurl);
+        let urllist = httprequests::urlsbuilder(&url, &urlfilter);
+        info!("URLBUILDER: {:?}", &urllist);
+
+        for buildurl in urllist {
+            let newurl = format!("{}{}", geturl, buildurl);
+            info!("Request data from: {:?}", newurl);
 
             let data =
                 httprequests::get_data(&client, &newurl, &username, &password, entries).await?;
-            let hm = fillseries(data, &mut hm).clone();
 
-            let mut df2 = DataFrame::default();
-            for (_i, v) in hm {
+            let mut hm: HashMap<String, Series> =
+                datapolars::getheaders(&client, &geturl, &username, &password).await?;
+            let data = datapolars::fillseries(data, &mut hm).clone();
+
+            let mut df_append = DataFrame::default();
+            for (_i, v) in data {
                 let df = v.into_frame();
-                df2 = concat_df_horizontal(&[df2.clone(), df.clone()])?;
+                df_append = concat_df_horizontal(&[df_append, df])?;
             }
-            //println!("{:?}", df2);
 
-            let ss = vec![
+            let df_header = vec![
                 "Process Instance.Task Information.Creation Date",
                 "Objects.Name",
                 "Process Instance.Task Details.Key",
                 "Process Definition.Tasks.Task Name",
                 "Process Instance.Task Information.Target User",
             ];
-            let df = pl_vstr_to_selects(df2, ss)?;
 
-            //println!("{:?}", df);
-
+            let df = pl_vstr_to_selects(df_append, df_header)?;
             let mut out = datapolars::get_data(df, &filter1, &filter2)?;
-            //println!("{:?}", out);
 
             let tasks = out["Process Instance.Task Details.Key"].as_list();
-            let ids = out["Process Instance.Task Information.Target User"].as_list();
-
-            /* let app = Router::new()
-                // `POST /users` goes to `create_user`
-                .route("/users", post(search_handler));
-
-            // run our app with hyper, listening globally on port 3000
-            let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-            axum::serve(listener, app).await.unwrap();*/
+            //let _ids = out["Process Instance.Task Information.Target User"].as_list();
 
             if printmode {
                 let mut file = OpenOptions::new()
@@ -402,8 +292,9 @@ async fn main() -> Result<(), CliError> {
                     .unwrap();
                 //file.write_all(b"\n").unwrap();
                 //let mut file = std::fs::File::create("path.csv").unwrap();
+
                 CsvWriter::new(&mut file)
-                    .include_header(!fileexists)
+                    .include_header(!Path::new("path.csv").exists())
                     .finish(&mut out)
                     .unwrap();
 
@@ -413,24 +304,13 @@ async fn main() -> Result<(), CliError> {
                     .select([col("Process Instance.Task Information.Target User")])
                     .collect()?;
 
-                fileappend();
-
-                /* let file = OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open("path.csv")
-                    .unwrap();
-                csv::Writer::from_writer(file); */
-
                 let mut file = std::fs::File::create("ids.csv").unwrap();
                 CsvWriter::new(&mut file).finish(&mut dfa).unwrap();
-                //println!("{:?}", dfa);
-                //println!("{:?}", ids);
 
                 let contents =
                     fs::read_to_string("ids.csv").expect("Should have been able to read the file");
-                let splitted: Vec<&str> = contents.split("\n").collect();
-                println!("{:?}", splitted);
+                let splitted: Vec<&str> = contents.split('\n').collect();
+                println!("Ids: {:?}", splitted);
             } else {
                 let mut tasksdone: Vec<Resp> = vec![];
                 for i in &tasks {
@@ -439,12 +319,12 @@ async fn main() -> Result<(), CliError> {
                     }
                     let o = i.ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
                     let id = o.get(0).unwrap();
-                    info!("{}", id);
+                    info!("Retry id: {}", id);
 
                     let puturl = format!("{}{}{}{}", url, urlput, "/", id);
-                    println!("{}", puturl);
+                    info!("Request put: {}", puturl);
 
-                    let response = retrycall(
+                    let response = httprequests::retrycall(
                         &client,
                         puturl,
                         json_data.to_owned(),
@@ -458,7 +338,7 @@ async fn main() -> Result<(), CliError> {
                     //info!("{}", json.id);
                     thread::sleep(Duration::from_secs(1));
                 }
-                info!("{:?}", tasksdone);
+                info!("Tasks done: {:?}", tasksdone);
             }
         }
     }
@@ -480,7 +360,7 @@ mod tests {
             conf.baseurl, conf.urlfilter[0].0, conf.urlfilter[0].1[0]
         );
 
-        let n = urlsbuilder(&conf.baseurl, &conf.urlfilter);
+        let n = httprequests::urlsbuilder(&conf.baseurl, &conf.urlfilter);
         println!("{n:?}");
         println!("--------------");
 
@@ -497,7 +377,7 @@ mod tests {
             conf.baseurl, conf.urlfilter[0].0, conf.urlfilter[0].1[0]
         );
 
-        let n = urlsbuilder(&conf.baseurl, &conf.urlfilter);
+        let n = httprequests::urlsbuilder(&conf.baseurl, &conf.urlfilter);
         println!("{n:?}");
         println!("--------------");
 
@@ -505,3 +385,10 @@ mod tests {
         Ok(())
     }
 }
+/* let app = Router::new()
+    // `POST /users` goes to `create_user`
+    .route("/users", post(search_handler));
+
+// run our app with hyper, listening globally on port 3000
+let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+axum::serve(listener, app).await.unwrap();*/

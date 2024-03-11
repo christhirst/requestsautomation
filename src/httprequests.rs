@@ -1,6 +1,8 @@
+use std::time::Duration;
+
 use reqwest::{
     header::{ACCEPT, CONTENT_TYPE},
-    Client,
+    Client, Response,
 };
 
 use crate::{CliError, Root, Task};
@@ -62,4 +64,48 @@ async fn fetchdata(
         .await?;
     let json: Root = response.json().await?;
     Ok(json)
+}
+
+pub async fn retrycall(
+    client: &Client,
+    url: String,
+    body: String,
+    username: String,
+    password: String,
+) -> Result<Response, CliError> {
+    let response = client
+        .put(url)
+        .body(body)
+        .header(CONTENT_TYPE, "application/json")
+        .header("X-Requested-By", "rust")
+        .basic_auth(username, Some(password))
+        .timeout(Duration::from_secs(3))
+        .send()
+        .await?;
+    Ok(response)
+}
+
+pub fn urlsbuilder(urlsnippets: &str, urlfilter: &Vec<(String, Vec<String>)>) -> Vec<String> {
+    let mut uri: Vec<Vec<String>> = Vec::new();
+    for (url, filters) in urlfilter {
+        let mut tup: Vec<String> = Vec::new();
+        for filter in filters {
+            let ent = format!("{}+eq+{}", url, filter);
+            tup.push(ent)
+            //tup[i] = ent;
+        }
+        uri.push(tup);
+    }
+    let mut combined = Vec::new();
+    //for i in &uri {
+    if uri.len() > 1 {
+        for item1 in &uri[0] {
+            for item2 in &uri[1] {
+                combined.push(format!("{} AND {}", item1, item2));
+            }
+        }
+    } else {
+        combined = uri.get(0).unwrap().clone();
+    }
+    combined
 }
