@@ -257,11 +257,14 @@ async fn main() -> Result<(), CliError> {
             let newurl = format!("{}{}", geturl, buildurl);
             info!("Request data from: {:?}", newurl);
 
+            //new data from rest api
             let data =
                 httprequests::get_data(&client, &newurl, &username, &password, entries).await?;
 
+            //get header data
             let mut hm: HashMap<String, Series> =
                 datapolars::getheaders(&client, &geturl, &username, &password).await?;
+
             let data = datapolars::fillseries(data, &mut hm).clone();
 
             let mut df_append = DataFrame::default();
@@ -278,6 +281,7 @@ async fn main() -> Result<(), CliError> {
                 "Process Instance.Task Information.Target User",
             ];
 
+            //only select some columns
             let df = pl_vstr_to_selects(df_append, df_header)?;
             let mut out = datapolars::get_data(df, &filter1, &filter2)?;
 
