@@ -289,18 +289,19 @@ async fn main() -> Result<(), CliError> {
             //let _ids = out["Process Instance.Task Information.Target User"].as_list();
 
             if printmode {
+                let fileexists = !Path::new("path.csv").exists();
                 let mut file = OpenOptions::new()
                     .create(true)
                     .append(true)
                     .open("path.csv")
                     .unwrap();
-                //file.write_all(b"\n").unwrap();
-                //let mut file = std::fs::File::create("path.csv").unwrap();
 
                 CsvWriter::new(&mut file)
-                    .include_header(!Path::new("path.csv").exists())
+                    .include_header(fileexists)
                     .finish(&mut out)
                     .unwrap();
+
+                //file.write_all(b"\n").unwrap();
 
                 let mut dfa = out
                     .clone()
