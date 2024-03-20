@@ -56,7 +56,7 @@ impl Default for AppConfig {
             baseurl: "http://localhost:8000".to_string(),
             urlget: "/te?q=123+eq+123 AND ".to_string(),
             urlfilter,
-            entries: 5,
+            entries: 10,
             filter1: "AAccount".to_string(),
             filter2: "Update".to_string(),
             urlput: "/users".to_string(),

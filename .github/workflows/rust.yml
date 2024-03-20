@@ -69,7 +69,7 @@ jobs:
           context: .
           target: runtime
           push: true
-          tags: raynkami/rust.auto:v0.0.18
+          tags: raynkami/rust.auto:v0.0.19
           labels: rust.auto
 
   del_runs:
