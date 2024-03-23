@@ -185,7 +185,7 @@ async fn main() -> Result<(), CliError> {
     let printmode = conf.printmode;
     let filemode = conf.filemode;
 
-    info!("Version: {:?}", "v0.0.17");
+    info!("Version: {:?}", "v0.0.19");
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
 
