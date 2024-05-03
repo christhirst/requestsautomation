@@ -15,11 +15,9 @@ use std::{
     collections::HashMap,
     fmt,
     fs::{self, OpenOptions},
-    io::Write,
     path::Path,
     thread,
     time::Duration,
-    vec,
 };
 use tracing::{info, subscriber::SetGlobalDefaultError};
 
@@ -47,6 +45,21 @@ pub struct Root {
     pub has_more: bool,
     pub total_result: i64,
     pub tasks: Vec<Task>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RootAccount {
+    pub links: Vec<Link>,
+    pub count: i64,
+    pub has_more: bool,
+    pub total_result: i64,
+    pub accounts: Vec<Account>,
+}
+
+enum Roots {
+    Root(Root),
+    RootAccount(RootAccount),
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -130,6 +143,18 @@ pub struct OptionResponse {
     pub completed: bool,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+    pub links: Vec<Link2>,
+    pub id: String,
+    pub name: String,
+    pub user_id: String,
+    pub app_instance_id: String,
+    pub request_id: String,
+    pub fields: Vec<Field>,
+}
+
 #[derive(Debug)]
 pub enum CliError {
     EntityNotFound { entity: &'static str, id: i64 },
@@ -185,7 +210,7 @@ async fn main() -> Result<(), CliError> {
     let printmode = conf.printmode;
     let filemode = conf.filemode;
 
-    info!("Version: {:?}", "v0.0.19");
+    info!("Version: {:?}", "v0.0.20");
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
 
@@ -390,10 +415,3 @@ mod tests {
         Ok(())
     }
 }
-/* let app = Router::new()
-    // `POST /users` goes to `create_user`
-    .route("/users", post(search_handler));
-
-// run our app with hyper, listening globally on port 3000
-let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-axum::serve(listener, app).await.unwrap();*/

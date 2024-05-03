@@ -85,6 +85,9 @@ pub async fn retrycall(
     Ok(response)
 }
 
+// /iam/governance/selfservice/api/v1/accounts/account?userid={userKey}
+// /iam/governance/selfservice/api/v1/accounts/{accountid}
+
 pub fn urlsbuilder(urlsnippets: &str, urlfilter: &Vec<(String, Vec<String>)>) -> Vec<String> {
     let mut uri: Vec<Vec<String>> = Vec::new();
     for (url, filters) in urlfilter {
