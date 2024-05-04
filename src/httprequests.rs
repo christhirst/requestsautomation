@@ -5,40 +5,34 @@ use reqwest::{
     Client, Response,
 };
 
-use crate::{CliError, Root, Task};
+use crate::{CliError, Root, Roots, Task};
 
 pub async fn get_data(
     client: &Client,
-    url: &str,
+    mut url: &str,
     username: &str,
     password: &str,
     fetched: u32,
 ) -> Result<Vec<Task>, CliError> {
-    let mut data = fetchdata(client, url, username, password).await?;
-    println!("Entires in Backend: {}", data.count);
-    let gotcount = data.count;
     let mut alltasks: Vec<Task> = vec![];
-    alltasks.append(&mut data.tasks);
 
-    let mut more = data.has_more;
-
+    let mut more = true;
     let mut count = 0;
-    let mut next_link = "".to_owned();
 
-    for l in data.links {
-        if l.rel == "next" {
-            next_link = l.href;
-        }
-    }
-
+    let mut next_link: String;
     while more && count < fetched {
-        let mut data = fetchdata(client, &next_link, username, password).await?;
+        let mut data = fetchdata(client, url, username, password).await?;
+
+        println!("Entires in Backend: {}", data.count);
+        let gotcount = data.count;
+
         alltasks.append(&mut data.tasks);
         more = data.has_more;
 
         for l in data.links {
             if l.rel == "next" {
-                next_link = l.href;
+                next_link = l.href.to_owned();
+                url = next_link.as_ref();
             }
         }
 
