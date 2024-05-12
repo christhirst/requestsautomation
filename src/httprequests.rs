@@ -18,29 +18,39 @@ pub async fn get_data(
 
     let mut more = true;
     let mut count = 0;
+    let mut url: String = url.to_string();
 
     let mut next_link: String;
     while more && count < fetched {
-        let mut data = fetchdata(client, url, username, password).await?;
-
-        println!("Entires in Backend: {}", data.count);
-        let gotcount = data.count;
-
-        alltasks.append(&mut data.tasks);
-        more = data.has_more;
-
-        for l in data.links {
-            if l.rel == "next" {
-                next_link = l.href.to_owned();
-                url = next_link.as_ref();
+        let mut data = fetchdata(client, &mut url, username, password).await?;
+        match data {
+            Roots::Root(d) => {
+                //data = Roots::RootAccount(d);
+                let more = fetchdatass(d, &mut alltasks, &mut url);
+                //println!("Entires in Backend: {}", count);
+                //let gotcount = count;
             }
+            Roots::RootAccount(d) => data = Roots::RootAccount(d),
         }
 
         count += 1;
-        println!("{}", count as f32 / gotcount as f32);
     }
 
     Ok(alltasks)
+}
+
+fn fetchdatass(mut data: Root, mut alltasks: &mut Vec<Task>, url: &mut String) -> (bool) {
+    alltasks.append(&mut data.tasks);
+    let more = data.has_more;
+    let mut next_link: String;
+    for l in data.links {
+        if l.rel == "next" {
+            *url = l.href.to_owned();
+        }
+    }
+    println!("{}", data.count / data.total_result);
+    more
+    //todo!()
 }
 
 async fn fetchdata(
@@ -48,7 +58,7 @@ async fn fetchdata(
     url: &str,
     username: &str,
     password: &str,
-) -> Result<Root, CliError> {
+) -> Result<Roots, CliError> {
     let response = client
         .get(url)
         .header(CONTENT_TYPE, "application/json")
@@ -57,7 +67,7 @@ async fn fetchdata(
         .send()
         .await?;
     let json: Root = response.json().await?;
-    Ok(json)
+    Ok(Roots::Root(json))
 }
 
 pub async fn retrycall(
