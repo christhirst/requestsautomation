@@ -5,6 +5,10 @@ mod httprequests;
 use axum::body;
 use config::ConfigError;
 use polars::functions::concat_df_horizontal;
+async fn provTasks(
+    &self,
+    request: tonic::Request<proto::UserRequest>,
+) -> Result<tonic::Response<proto::UserResponse>, tonic::Status>;
 use polars::prelude::*;
 
 //polars::prelude::NamedFrom<std::vec::Vec<serde_json::Value>
@@ -387,6 +391,53 @@ async fn main() -> Result<(), CliError> {
         }
     }
     Ok(())
+}
+
+use proto::user_server::{User, UserServer};
+
+mod proto {
+    tonic::include_proto!("grpc");
+
+    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
+        tonic::include_file_descriptor_set!("user_descriptor");
+}
+
+type State = std::sync::Arc<tokio::sync::RwLock<u64>>;
+
+#[derive(Debug, Default)]
+struct UserService {
+    state: State,
+}
+//#[tonic::async_trait]
+impl User for UserService {
+    async fn list(
+        &self,
+        request: tonic::Request<proto::UserRequest>,
+    ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
+        let input = request.get_ref();
+        let response = proto::CalculationResponse {
+            result: input.a + input.b,
+        };
+
+        Ok(tonic::Response::new(response))
+    }
+
+    async fn provTasks(
+        &self,
+        request: tonic::Request<proto::UserRequest>,
+    ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
+        let input = request.get_ref();
+
+        if input.b == 0 {
+            return Err(tonic::Status::invalid_argument("cannot divide by zero"));
+        }
+
+        let response = proto::UserResponse {
+            result: input.a / input.b,
+        };
+
+        Ok(tonic::Response::new(response))
+    }
 }
 
 #[cfg(test)]
