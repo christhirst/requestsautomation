@@ -191,7 +191,7 @@ impl From<SetGlobalDefaultError> for CliError {
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
-    // get Users
+    //get Users
     // /iam/governance/selfservice/api/v1/users
     // Get all accounts for a user.
 
@@ -229,6 +229,7 @@ async fn main() -> Result<(), CliError> {
 
     let client = reqwest::Client::new();
     let json_data = r#"{"action": "retry"}"#;
+    let json_data = r#"{"action": "manualComplete"}"#;
     info!("{}", geturl);
 
     if filemode {
