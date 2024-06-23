@@ -1,3 +1,4 @@
+grpcport = "50051"
 username = "testuser"
 password = "testPW"
 baseurl = "http://localhost:8000"

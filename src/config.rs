@@ -23,6 +23,7 @@ impl From<toml::de::Error> for ConfigError {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct AppConfig {
+    pub grpcport: String,
     pub username: String,
     pub password: String,
     pub baseurl: String,
@@ -51,6 +52,7 @@ impl Default for AppConfig {
         )];
 
         Self {
+            grpcport: "8001".to_string(),
             username: "testuser".to_string(),
             password: "testPW".to_string(),
             baseurl: "http://localhost:8000".to_string(),

@@ -5,24 +5,25 @@ use reqwest::{
     Client, Response,
 };
 
-use crate::{CliError, Root, Roots, Task};
+use crate::{Account, CliError, Root, Roots, Task};
 
 pub async fn get_data(
     client: &Client,
-    mut url: &str,
+    url: &str,
     username: &str,
     password: &str,
     fetched: u32,
 ) -> Result<Vec<Task>, CliError> {
     let mut alltasks: Vec<Task> = vec![];
 
-    let mut more = true;
+    let more = true;
     let mut count = 0;
     let mut url: String = url.to_string();
 
     let mut next_link: String;
     while more && count < fetched {
-        let mut data = fetchdata(client, &mut url, username, password).await?;
+        let mut dat = Root::default();
+        let mut data: Roots<Account> = fetchdata(client, &mut url, username, password, dat).await?;
         match data {
             Roots::Root(d) => {
                 //data = Roots::RootAccount(d);
@@ -53,12 +54,13 @@ fn fetchdatass(mut data: Root, mut alltasks: &mut Vec<Task>, url: &mut String) -
     //todo!()
 }
 
-async fn fetchdata(
+async fn fetchdata<T, U>(
     client: &Client,
     url: &str,
     username: &str,
     password: &str,
-) -> Result<Roots, CliError> {
+    mut t: T,
+) -> Result<Roots<U>, CliError> {
     let response = client
         .get(url)
         .header(CONTENT_TYPE, "application/json")
@@ -66,8 +68,8 @@ async fn fetchdata(
         .basic_auth(username, Some(password))
         .send()
         .await?;
-    let json: Root = response.json().await?;
-    Ok(Roots::Root(json))
+    let t = response.json().await?;
+    Ok(Roots::Root(t))
 }
 
 pub async fn retrycall(

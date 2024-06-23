@@ -5,12 +5,9 @@ mod httprequests;
 use axum::body;
 use config::ConfigError;
 use polars::functions::concat_df_horizontal;
-async fn provTasks(
-    &self,
-    request: tonic::Request<proto::UserRequest>,
-) -> Result<tonic::Response<proto::UserResponse>, tonic::Status>;
-use polars::prelude::*;
 
+use polars::prelude::*;
+//test
 //polars::prelude::NamedFrom<std::vec::Vec<serde_json::Value>
 use reqwest::{self, header::CONTENT_TYPE, Client, Error as rError, Response};
 use serde::{Deserialize, Serialize};
@@ -49,21 +46,23 @@ pub struct Root {
     pub has_more: bool,
     pub total_result: i64,
     pub tasks: Vec<Task>,
+    //pub tasks: Vec<Task>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RootAccount {
+pub struct RootAccount<T> {
     pub links: Vec<Link>,
     pub count: i64,
     pub has_more: bool,
     pub total_result: i64,
-    pub accounts: Vec<Account>,
+    pub accounts: Vec<T>,
+    //pub accounts: Vec<Account>,
 }
 
-enum Roots {
+enum Roots<T> {
     Root(Root),
-    RootAccount(RootAccount),
+    RootAccount(RootAccount<T>),
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -396,7 +395,7 @@ async fn main() -> Result<(), CliError> {
 use proto::user_server::{User, UserServer};
 
 mod proto {
-    tonic::include_proto!("grpc");
+    tonic::include_proto!("requestsautomation");
 
     pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
         tonic::include_file_descriptor_set!("user_descriptor");
@@ -408,21 +407,22 @@ type State = std::sync::Arc<tokio::sync::RwLock<u64>>;
 struct UserService {
     state: State,
 }
-//#[tonic::async_trait]
+
+#[tonic::async_trait]
 impl User for UserService {
     async fn list(
         &self,
         request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
         let input = request.get_ref();
-        let response = proto::CalculationResponse {
+        let response = proto::UserResponse {
             result: input.a + input.b,
         };
 
         Ok(tonic::Response::new(response))
     }
 
-    async fn provTasks(
+    async fn prov_tasks(
         &self,
         request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
@@ -472,11 +472,33 @@ mod tests {
             conf.baseurl, conf.urlfilter[0].0, conf.urlfilter[0].1[0]
         );
 
+        let port = conf.grpcport;
+
+        let addr: std::net::SocketAddr = "[::1]:".push_str(port).parse()?;
+
         let n = httprequests::urlsbuilder(&conf.baseurl, &conf.urlfilter);
         println!("{n:?}");
         println!("--------------");
 
         //assert_eq!(urlresult, n);
+
+        //grpc server
+        let calc = UserService::default();
+
+        let service = tonic_reflection::server::Builder::configure()
+            .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
+            .build()?;
+
+        Server::builder()
+            .accept_http1(true)
+            //.layer(tower_http::cors::CorsLayer::permissive())
+            .add_service(service)
+            .add_service(CalculatorServer::new(calc))
+            //.add_service(tonic_web::enable(CalculatorServer::new(calc)))
+            //.add_service(AdminServer::with_interceptor(admin, check_auth))
+            .serve(addr)
+            .await?;
+
         Ok(())
     }
 }

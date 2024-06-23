@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package grpc;
+package requestsautomation;
 
 service User {
   rpc List(UserRequest) returns (UserResponse);
-  rpc provTasks(UserRequest) returns (UserResponse);
+  rpc ProvTasks(UserRequest) returns (UserResponse);
 }
 
 message UserRequest {
@@ -14,10 +14,10 @@ message UserRequest {
 
 message UserResponse { int64 result = 1; }
 
-service Admin {
+/* service Admin {
   rpc GetRequestCount(GetCountRequest) returns (CounterResponse);
-}
+} */
 
-message GetCountRequest {}
+/* message GetCountRequest {}
 
-message CounterResponse { uint64 count = 1; }
+message CounterResponse { uint64 count = 1; } */

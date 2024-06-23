@@ -6,7 +6,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     tonic_build::configure()
         .file_descriptor_set_path(out_dir.join("user_descriptor.bin"))
-        .compile(&["proto/cal.proto"], &["proto"])?;
+        .compile(&["proto/usr.proto"], &["proto"])?;
 
     tonic_build::compile_protos("proto/usr.proto")?;
 
