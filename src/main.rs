@@ -46,23 +46,26 @@ pub struct Root {
     pub has_more: bool,
     pub total_result: i64,
     pub tasks: Vec<Task>,
-    //pub tasks: Vec<Task>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RootAccount<T> {
+pub struct RootAccount {
     pub links: Vec<Link>,
     pub count: i64,
     pub has_more: bool,
     pub total_result: i64,
-    pub accounts: Vec<T>,
-    //pub accounts: Vec<Account>,
+    pub accounts: Vec<Account>,
 }
 
-enum Roots<T> {
+enum ListItems {
+    Account(Account),
+    Task(Task),
+}
+
+enum Roots {
     Root(Root),
-    RootAccount(RootAccount<T>),
+    RootAccount(RootAccount),
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

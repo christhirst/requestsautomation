@@ -23,7 +23,7 @@ pub async fn get_data(
     let mut next_link: String;
     while more && count < fetched {
         let mut dat = Root::default();
-        let mut data: Roots<Account> = fetchdata(client, &mut url, username, password, dat).await?;
+        let mut data = fetchdata(client, &mut url, username, password, dat).await?;
         match data {
             Roots::Root(d) => {
                 //data = Roots::RootAccount(d);
@@ -54,13 +54,13 @@ fn fetchdatass(mut data: Root, mut alltasks: &mut Vec<Task>, url: &mut String) -
     //todo!()
 }
 
-async fn fetchdata<T, U>(
+async fn fetchdata<T>(
     client: &Client,
     url: &str,
     username: &str,
     password: &str,
     mut t: T,
-) -> Result<Roots<U>, CliError> {
+) -> Result<Roots, CliError> {
     let response = client
         .get(url)
         .header(CONTENT_TYPE, "application/json")
