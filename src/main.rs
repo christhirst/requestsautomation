@@ -1,10 +1,11 @@
 mod config;
 mod datapolars;
+mod grpcserver;
 mod httprequests;
-
-use axum::body;
 use config::ConfigError;
+use grpcserver::proto;
 use polars::functions::concat_df_horizontal;
+use proto::user_server::{User, UserServer};
 
 use polars::prelude::*;
 //test
@@ -20,6 +21,7 @@ use std::{
     thread,
     time::Duration,
 };
+use tonic::{transport::Server, Code, Status};
 use tracing::{info, subscriber::SetGlobalDefaultError};
 
 use crate::datapolars::pl_vstr_to_selects;
@@ -45,10 +47,28 @@ pub struct Root {
     pub count: i64,
     pub has_more: bool,
     pub total_result: i64,
-    pub tasks: Vec<Task>,
+    //different types
+    pub accounts: Option<Vec<Account>>,
+    pub tasks: Option<Vec<Task>>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Properties {
+    pub count: i64,
+    pub has_more: bool,
+    pub total_result: i64,
+    pub users: Users,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Users {
+    #[serde(rename = "type")]
+    pub type_field: String,
+    pub items: Items<String>,
+}
+/* #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RootAccount {
     pub links: Vec<Link>,
@@ -56,16 +76,13 @@ pub struct RootAccount {
     pub has_more: bool,
     pub total_result: i64,
     pub accounts: Vec<Account>,
-}
+    pub tasks: Vec<Task>,
+} */
 
-enum ListItems {
-    Account(Account),
-    Task(Task),
-}
-
+#[derive(Debug, Clone, Serialize, Deserialize)]
 enum Roots {
     Root(Root),
-    RootAccount(RootAccount),
+    //RootAccount(RootAccount),
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -126,7 +143,7 @@ pub struct Field {
     pub value: Value,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 struct Items<T> {
     items: Vec<T>,
 }
@@ -171,6 +188,13 @@ pub enum CliError {
     RError(rError),
     GlobalDefaultError(SetGlobalDefaultError),
 }
+
+impl Into<tonic::Status> for CliError {
+    fn into(self) -> tonic::Status {
+        Status::new(Code::InvalidArgument, "name is invalid")
+    }
+}
+
 impl From<PolarsError> for CliError {
     fn from(err: PolarsError) -> CliError {
         CliError::PE(err)
@@ -275,7 +299,7 @@ async fn main() -> Result<(), CliError> {
                     }
                     Err(e) => {
                         info!("Retry failed: {e:?}");
-                        thread::sleep(Duration::from_secs(3));
+                        thread::sleep(Duration::from_secs(1));
                     }
                 }
             }
@@ -392,55 +416,30 @@ async fn main() -> Result<(), CliError> {
             }
         }
     }
+
+    let addr = "[::1]:50051".parse().unwrap();
+
+    //let state = State::default();
+
+    let calc = grpcserver::UserService::default();
+
+    let service = tonic_reflection::server::Builder::configure()
+        .register_encoded_file_descriptor_set(grpcserver::proto::FILE_DESCRIPTOR_SET)
+        .build()
+        .unwrap();
+
+    Server::builder()
+        .accept_http1(true)
+        //.layer(tower_http::cors::CorsLayer::permissive())
+        .add_service(service)
+        .add_service(UserServer::new(calc))
+        //.add_service(tonic_web::enable(CalculatorServer::new(calc)))
+        //.add_service(AdminServer::with_interceptor(admin, check_auth))
+        .serve(addr)
+        .await
+        .unwrap();
+
     Ok(())
-}
-
-use proto::user_server::{User, UserServer};
-
-mod proto {
-    tonic::include_proto!("requestsautomation");
-
-    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
-        tonic::include_file_descriptor_set!("user_descriptor");
-}
-
-type State = std::sync::Arc<tokio::sync::RwLock<u64>>;
-
-#[derive(Debug, Default)]
-struct UserService {
-    state: State,
-}
-
-#[tonic::async_trait]
-impl User for UserService {
-    async fn list(
-        &self,
-        request: tonic::Request<proto::UserRequest>,
-    ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
-        let input = request.get_ref();
-        let response = proto::UserResponse {
-            result: input.a + input.b,
-        };
-
-        Ok(tonic::Response::new(response))
-    }
-
-    async fn prov_tasks(
-        &self,
-        request: tonic::Request<proto::UserRequest>,
-    ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
-        let input = request.get_ref();
-
-        if input.b == 0 {
-            return Err(tonic::Status::invalid_argument("cannot divide by zero"));
-        }
-
-        let response = proto::UserResponse {
-            result: input.a / input.b,
-        };
-
-        Ok(tonic::Response::new(response))
-    }
 }
 
 #[cfg(test)]
@@ -496,7 +495,7 @@ mod tests {
             .accept_http1(true)
             //.layer(tower_http::cors::CorsLayer::permissive())
             .add_service(service)
-            .add_service(CalculatorServer::new(calc))
+            .add_service(UserServer::new(calc))
             //.add_service(tonic_web::enable(CalculatorServer::new(calc)))
             //.add_service(AdminServer::with_interceptor(admin, check_auth))
             .serve(addr)

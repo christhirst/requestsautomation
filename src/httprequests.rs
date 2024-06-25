@@ -4,6 +4,7 @@ use reqwest::{
     header::{ACCEPT, CONTENT_TYPE},
     Client, Response,
 };
+use tracing::info;
 
 use crate::{Account, CliError, Root, Roots, Task};
 
@@ -23,15 +24,16 @@ pub async fn get_data(
     let mut next_link: String;
     while more && count < fetched {
         let mut dat = Root::default();
-        let mut data = fetchdata(client, &mut url, username, password, dat).await?;
+        println!("Entires in url: {:?}", url);
+        let data = fetchdata(client, &mut url, username, password, dat).await?;
+        println!("Entires in Backend: {:?}", data);
         match data {
             Roots::Root(d) => {
                 //data = Roots::RootAccount(d);
                 let more = fetchdatass(d, &mut alltasks, &mut url);
                 //println!("Entires in Backend: {}", count);
                 //let gotcount = count;
-            }
-            Roots::RootAccount(d) => data = Roots::RootAccount(d),
+            } //Roots::RootAccount(d) => data = Roots::RootAccount(d),
         }
 
         count += 1;
@@ -41,7 +43,7 @@ pub async fn get_data(
 }
 
 fn fetchdatass(mut data: Root, mut alltasks: &mut Vec<Task>, url: &mut String) -> (bool) {
-    alltasks.append(&mut data.tasks);
+    alltasks.append(&mut data.tasks.unwrap());
     let more = data.has_more;
     let mut next_link: String;
     for l in data.links {
@@ -49,7 +51,8 @@ fn fetchdatass(mut data: Root, mut alltasks: &mut Vec<Task>, url: &mut String) -
             *url = l.href.to_owned();
         }
     }
-    println!("{}", data.count / data.total_result);
+    info!("{}", data.count / data.total_result);
+    //println!("{}", data.count / data.total_result);
     more
     //todo!()
 }
