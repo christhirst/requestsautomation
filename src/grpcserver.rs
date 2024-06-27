@@ -285,8 +285,8 @@ impl User for UserService {
             let puturl = format!("{}{}{}{}", conf.baseurl, conf.urlput, "/", id);
             info!("PutUrl: {}", puturl);
 
-            let mut status: u16 = 0;
-            let mut json: Resp;
+            let status: u16 = 0;
+            //let mut json: Resp;
 
             let mut retry: i32 = 0;
             while retry < 0 || status != 200 {
@@ -340,7 +340,7 @@ impl User for UserService {
                 let mut file = std::fs::File::create("path.csv")
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
                 CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
-                retry += 1;
+                //retry += 1;
             }
 
             thread::sleep(Duration::from_secs(1));
