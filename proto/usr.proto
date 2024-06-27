@@ -9,12 +9,16 @@ service User {
   rpc List(UserRequest) returns (UserResponse);
   rpc DbDelete(UserRequest) returns (UserResponse);
   rpc ProvTasks(UserRequest) returns (ListResponse);
+  rpc ProvAction(ProvAcionRequest) returns (ListResponse);
 }
 
 message UserRequest {
   int64 a = 1;
   int64 b = 2;
 }
+
+message ProvAcionRequest {  string action = 1;}
+
 message ListResponse { repeated string result = 4 ; }
 
 message UserResponse { int64 result = 1; }

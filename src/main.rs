@@ -263,7 +263,7 @@ async fn main() -> Result<(), CliError> {
     info!("{}", geturl);
 
     if filemode {
-        let mut tasksdone: Vec<Resp> = vec![];
+        /* let mut tasksdone: Vec<Resp> = vec![];
         let tasksl = CsvReader::from_path("path.csv").unwrap().finish().unwrap()
             ["Process Instance.Task Details.Key"]
             .as_list();
@@ -317,48 +317,48 @@ async fn main() -> Result<(), CliError> {
 
             thread::sleep(Duration::from_secs(1));
         }
-        info!("{:?}", tasksdone);
+        info!("{:?}", tasksdone);*/
     } else {
         let urllist = httprequests::urlsbuilder(&url, &urlfilter);
         info!("URLBUILDER: {:?}", &urllist);
 
         for buildurl in urllist {
-            let newurl = format!("{}{}", geturl, buildurl);
-            info!("Request data from: {:?}", newurl);
+            /* let newurl = format!("{}{}", geturl, buildurl);
+                       info!("Request data from: {:?}", newurl);
 
-            //new data from rest api
-            let data =
-                httprequests::get_data(&client, &newurl, &username, &password, entries).await?;
+                       //new data from rest api
+                       let data =
+                           httprequests::get_data(&client, &newurl, &username, &password, entries).await?;
 
-            //get header data
-            let mut hm: HashMap<String, Series> =
-                datapolars::getheaders(&client, &geturl, &username, &password).await?;
+                       //get header data
+                       let mut hm: HashMap<String, Series> =
+                           datapolars::getheaders(&client, &geturl, &username, &password).await?;
 
-            let data = datapolars::fillseries(data, &mut hm).clone();
+                       let data = datapolars::fillseries(data, &mut hm).clone();
 
-            let mut df_append = DataFrame::default();
-            for (_i, v) in data {
-                let df = v.into_frame();
-                df_append = concat_df_horizontal(&[df_append, df])?;
-            }
+                       let mut df_append = DataFrame::default();
+                       for (_i, v) in data {
+                           let df = v.into_frame();
+                           df_append = concat_df_horizontal(&[df_append, df])?;
+                       }
 
-            let df_header = vec![
-                "Process Instance.Task Information.Creation Date",
-                "Objects.Name",
-                "Process Instance.Task Details.Key",
-                "Process Definition.Tasks.Task Name",
-                "Process Instance.Task Information.Target User",
-            ];
+                       let df_header = vec![
+                           "Process Instance.Task Information.Creation Date",
+                           "Objects.Name",
+                           "Process Instance.Task Details.Key",
+                           "Process Definition.Tasks.Task Name",
+                           "Process Instance.Task Information.Target User",
+                       ];
 
-            //only select some columns
-            let df = pl_vstr_to_selects(df_append, df_header)?;
-            let mut out = datapolars::get_data(df, &filter1, &filter2)?;
+                       //only select some columns
+                       let df = pl_vstr_to_selects(df_append, df_header)?;
+                       let mut out = datapolars::get_data(df, &filter1, &filter2)?;
 
-            let tasks = out["Process Instance.Task Details.Key"].as_list();
-            //let _ids = out["Process Instance.Task Information.Target User"].as_list();
-
+                       let tasks = out["Process Instance.Task Details.Key"].as_list();
+                       //let _ids = out["Process Instance.Task Information.Target User"].as_list();
+            */
             if printmode {
-                let fileexists = !Path::new("path.csv").exists();
+                /*    let fileexists = !Path::new("path.csv").exists();
                 let mut file = OpenOptions::new()
                     .create(true)
                     .append(true)
@@ -384,9 +384,9 @@ async fn main() -> Result<(), CliError> {
                 let contents =
                     fs::read_to_string("ids.csv").expect("Should have been able to read the file");
                 let splitted: Vec<&str> = contents.split('\n').collect();
-                println!("Ids: {:?}", splitted);
+                println!("Ids: {:?}", splitted); */
             } else {
-                let mut tasksdone: Vec<Resp> = vec![];
+                /*   let mut tasksdone: Vec<Resp> = vec![];
                 for i in &tasks {
                     if checkmode {
                         break;
@@ -412,7 +412,7 @@ async fn main() -> Result<(), CliError> {
                     //info!("{}", json.id);
                     thread::sleep(Duration::from_secs(1));
                 }
-                info!("Tasks done: {:?}", tasksdone);
+                info!("Tasks done: {:?}", tasksdone); */
             }
         }
     }
