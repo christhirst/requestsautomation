@@ -77,10 +77,10 @@ async fn fetchdata<T>(
 
 pub async fn retrycall(
     client: &Client,
-    url: String,
+    url: &str,
     body: String,
-    username: String,
-    password: String,
+    username: &str,
+    password: &str,
 ) -> Result<Response, CliError> {
     let response = client
         .put(url)

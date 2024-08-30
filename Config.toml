@@ -15,4 +15,5 @@ filter1 = "AAccount"
 filter2 = "Update"
 listof = "AAccount"
 attr = "Process Instance.Task Information.Target User"
+filelist= "path.csv"
 

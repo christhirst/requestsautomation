@@ -36,6 +36,7 @@ pub struct AppConfig {
     pub printmode: bool,
     pub checkmode: bool,
     pub filemode: bool,
+    pub filelist: String,
 }
 
 /* #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -65,6 +66,7 @@ impl Default for AppConfig {
             printmode: true,
             checkmode: false,
             filemode: false,
+            filelist: "list.csv".to_string(),
         }
     }
 }
