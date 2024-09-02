@@ -243,7 +243,7 @@ async fn main() -> Result<(), CliError> {
     let url = conf.baseurl;
     let urlget = conf.urlget;
     let urlput = conf.urlput;
-    let urlfilter = conf.urlfilter;
+    /* let urlfilter = conf.urlfilter;
     let username = conf.username;
     let password = conf.password;
     let entries = conf.entries;
@@ -251,7 +251,7 @@ async fn main() -> Result<(), CliError> {
     let filter2 = conf.filter2;
     let checkmode = conf.checkmode;
     let printmode = conf.printmode;
-    let filemode = conf.filemode;
+    let filemode = conf.filemode; */
 
     info!("Version: {:?}", "v0.0.20");
 
@@ -289,6 +289,8 @@ async fn main() -> Result<(), CliError> {
 
 #[cfg(test)]
 mod tests {
+    use grpcserver::UserService;
+
     use self::config::load_or_initialize;
 
     use super::*;
@@ -311,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn fileappend_test() -> Result<(), Box<dyn std::error::Error>> {
+    async fn fileappend_test() -> Result<(), Box<dyn std::error::Error>> {
         let filename1 = "Config.toml";
         let conf = load_or_initialize(filename1).unwrap();
         let urlresult = format!(

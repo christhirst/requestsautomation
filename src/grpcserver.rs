@@ -217,10 +217,10 @@ impl User for UserService {
 
                 let response = httprequests::retrycall(
                     &client,
-                    puturl,
+                    &puturl,
                     json_data.to_owned(),
-                    conf.username.clone(),
-                    conf.password.clone(),
+                    &conf.username.clone(),
+                    &conf.password.clone(),
                 )
                 .await
                 .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
@@ -294,10 +294,10 @@ impl User for UserService {
                 //manage task
                 let resp_result: Result<Response, CliError> = match httprequests::retrycall(
                     &client,
-                    puturl.clone(),
+                    &puturl.clone(),
                     action.to_owned(),
-                    conf.username.clone(),
-                    conf.password.clone(),
+                    &conf.username.clone(),
+                    &conf.password.clone(),
                 )
                 .await
                 {
@@ -347,5 +347,15 @@ impl User for UserService {
         }
 
         Ok(tonic::Response::new(response))
+    }
+}
+mod tests {
+    use self::config::load_or_initialize;
+
+    use super::*;
+
+    #[test]
+    fn urlsbuilder_test() -> Result<(), Box<dyn std::error::Error>> {
+        todo!();
     }
 }
