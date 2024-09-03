@@ -6,10 +6,10 @@ package requestsautomation;
 //TODO delete db
 service User {
   rpc ConfReload(UserRequest) returns (ConfigResponse);
-  rpc List(UserRequest) returns (UserResponse);
+  rpc GenList(UserRequest) returns (UserResponse);
   rpc DbDelete(UserRequest) returns (UserResponse);
   rpc ProvTasks(UserRequest) returns (ListResponse);
-  rpc ProvAction(ProvAcionRequest) returns (ListResponse);
+  rpc  (ProvAcionRequest) returns (ListResponse);
 }
 
 message UserRequest {

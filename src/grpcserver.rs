@@ -69,13 +69,13 @@ impl User for UserService {
         Ok(tonic::Response::new(response))
     }
     //TODO user to csv
-    async fn list(
+    async fn gen_list(
         &self,
         request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
         let input = request.get_ref();
         let response = proto::UserResponse {
-            result: input.a + input.b,
+            result: input.a + input.b + 1,
         };
 
         Ok(tonic::Response::new(response))
@@ -102,16 +102,15 @@ impl User for UserService {
     ) -> Result<tonic::Response<proto::ListResponse>, tonic::Status> {
         //Config data
         let conf = self.state.read().await;
-        //Client create
+        //HTTP Client create
         let client = reqwest::Client::new();
         //Url create
         let geturl = format!("{}{}{}", &conf.baseurl, conf.urlput, conf.urlget);
         let urllist = httprequests::urlsbuilder(&conf.baseurl, &conf.urlfilter);
         debug!("URLBUILDER: {:?}", &urllist);
 
-        //get data
-        let json_data = r#"{"action": "retry"}"#;
-        let json_data = r#"{"action": "manualComplete"}"#;
+        //let json_data = r#"{"action": "retry"}"#;
+        //let json_data = r#"{"action": "manualComplete"}"#;
 
         //Url loop
         for buildurl in urllist {
@@ -199,41 +198,6 @@ impl User for UserService {
             info!("Ids: {:?}", splitted);
 
             //new data from rest api
-
-            let mut tasksdone: Vec<Resp> = vec![];
-            for i in &tasks {
-                if conf.checkmode {
-                    break;
-                }
-                let o = i
-                    .ok_or(CliError::EntityNotFound { entity: "", id: 1 })
-                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-
-                let id = o.get(0).unwrap();
-                info!("Retry id: {}", id);
-
-                let puturl = format!("{}{}{}{}", conf.baseurl, conf.urlput, "/", id);
-                info!("Request put: {}", puturl);
-
-                let response = httprequests::retrycall(
-                    &client,
-                    &puturl,
-                    json_data.to_owned(),
-                    &conf.username.clone(),
-                    &conf.password.clone(),
-                )
-                .await
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-
-                let json: Resp = response
-                    .json()
-                    .await
-                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-
-                tasksdone.push(json);
-                thread::sleep(Duration::from_secs(1));
-            }
-            info!("Tasks done: {:?}", tasksdone);
         }
         let input = request.get_ref();
         if input.b == 0 {
@@ -246,6 +210,7 @@ impl User for UserService {
 
         Ok(tonic::Response::new(response))
     }
+
     async fn prov_action(
         &self,
         request: tonic::Request<proto::ProvAcionRequest>,
