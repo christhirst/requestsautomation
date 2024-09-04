@@ -21,7 +21,7 @@ pub async fn get_data(
     let mut count = 0;
     let mut url: String = url.to_string();
 
-    let mut next_link: String;
+    //let mut next_link: String;
     while more && count < fetched {
         let mut dat = Root::default();
         println!("Entires in url: {:?}", url);
@@ -31,7 +31,6 @@ pub async fn get_data(
             Roots::Root(d) => {
                 //data = Roots::RootAccount(d);
                 let more = fetchdatass(d, &mut alltasks, &mut url);
-                //println!("Entires in Backend: {}", count);
                 //let gotcount = count;
             } //Roots::RootAccount(d) => data = Roots::RootAccount(d),
         }
@@ -94,10 +93,9 @@ pub async fn retrycall(
     Ok(response)
 }
 
+// build url like:
 // /iam/governance/selfservice/api/v1/accounts/account?userid={userKey}
-// /iam/governance/selfservice/api/v1/accounts/{accountid}
-
-pub fn urlsbuilder(urlsnippets: &str, urlfilter: &Vec<(String, Vec<String>)>) -> Vec<String> {
+pub fn urlsbuilder(_urlsnippets: &str, urlfilter: &Vec<(String, Vec<String>)>) -> Vec<String> {
     let mut uri: Vec<Vec<String>> = Vec::new();
     for (url, filters) in urlfilter {
         let mut tup: Vec<String> = Vec::new();

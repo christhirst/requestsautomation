@@ -11,13 +11,17 @@ service User {
   rpc ProvTasks(UserRequest) returns (ListResponse);
   rpc ProvAction(ProvAcionRequest) returns (ListResponse);
 }
-
+enum ActionType
+{   // whatever contents...
+    retry = 0;
+    bar = 1;
+}
 message UserRequest {
   int64 a = 1;
   int64 b = 2;
 }
 
-message ProvAcionRequest {  string action = 1;}
+message ProvAcionRequest {  ActionType action  = 1;}
 
 message ListResponse { repeated string result = 4 ; }
 

@@ -221,19 +221,6 @@ impl From<SetGlobalDefaultError> for CliError {
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
-    //get Users
-    // /iam/governance/selfservice/api/v1/users
-    // Get all accounts for a user.
-
-    // Get users from LDAP
-
-    // /iam/governance/selfservice/api/v1/accounts
-    // Delete account based on account id
-    // /iam/governance/selfservice/api/v1/accounts/{accountid}
-
-    // Get provisioning task with filter
-    // /iam/governance/selfservice/api/v1/provtasks/{taskid}
-
     let subscriber = tracing_subscriber::FmtSubscriber::new();
     // use that subscriber to process traces emitted after this point
     tracing::subscriber::set_global_default(subscriber)?;
@@ -243,15 +230,6 @@ async fn main() -> Result<(), CliError> {
     let url = conf.baseurl;
     let urlget = conf.urlget;
     let urlput = conf.urlput;
-    /* let urlfilter = conf.urlfilter;
-    let username = conf.username;
-    let password = conf.password;
-    let entries = conf.entries;
-    let filter1 = conf.filter1;
-    let filter2 = conf.filter2;
-    let checkmode = conf.checkmode;
-    let printmode = conf.printmode;
-    let filemode = conf.filemode; */
 
     info!("Version: {:?}", "v0.0.20");
 

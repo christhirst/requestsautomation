@@ -5,6 +5,7 @@ use crate::main;
 use crate::{config, CliError};
 use polars::functions::concat_df_horizontal;
 use polars::prelude::CsvReader;
+use std::str::FromStr;
 use std::thread;
 //use config::{AppConfig, ConfigError};
 use crate::datapolars::pl_vstr_to_selects;
@@ -28,6 +29,31 @@ pub mod proto {
         tonic::include_file_descriptor_set!("user_descriptor");
 }
 
+#[derive(Debug, Clone, Copy)]
+enum Action {
+    Retry,
+    ManualComplete,
+}
+
+impl ToString for Action {
+    fn to_string(&self) -> String {
+        match self {
+            Action::Retry => String::from("retry"),
+            Action::ManualComplete => String::from("manualComplete"),
+        }
+    }
+}
+
+impl TryFrom<i32> for Action {
+    type Error = ();
+    fn try_from(v: i32) -> Result<Self, Self::Error> {
+        match v {
+            x if x == Action::Retry as i32 => Ok(Action::Retry),
+            x if x == Action::ManualComplete as i32 => Ok(Action::ManualComplete),
+            _ => Err(()),
+        }
+    }
+}
 type State = std::sync::Arc<tokio::sync::RwLock<AppConfig>>;
 
 #[derive(Debug, Default)]
@@ -219,10 +245,14 @@ impl User for UserService {
         let conf = self.state.read().await;
         //let json_data = r#"{"action": "retry"}"#;
         //let json_data = r#"{"action": "manualComplete"}"#;
+        let mut action = Action::Retry.to_string();
+        match &request.get_ref().action.try_into() {
+            Ok(Action::Retry) => action = Action::Retry.to_string(),
+            Ok(Action::ManualComplete) => action = Action::ManualComplete.to_string(),
+            Err(_) => eprintln!("unknown number"),
+        }
 
         //TODO ACTIONS retry mc list
-        let action: &str = &request.get_ref().action;
-        println!("{:?}", action);
 
         let client = reqwest::Client::new();
 
@@ -260,7 +290,7 @@ impl User for UserService {
                 let resp_result: Result<Response, CliError> = match httprequests::retrycall(
                     &client,
                     &puturl.clone(),
-                    action.to_owned(),
+                    action.clone(),
                     &conf.username.clone(),
                     &conf.password.clone(),
                 )
