@@ -1,6 +1,7 @@
 #FROM clux/muslrust:stable as chef
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 RUN apk add protoc protobuf-dev
+ENV PROTOC=/usr/bin/protoc
 RUN cargo install cargo-chef
 WORKDIR /app
 RUN ls -l
