@@ -1,5 +1,6 @@
-FROM clux/muslrust:stable as chef
- 
+#FROM clux/muslrust:stable as chef
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+RUN apk add protoc protobuf-dev
 RUN cargo install cargo-chef
 WORKDIR /app
 RUN ls -l
