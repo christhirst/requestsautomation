@@ -1,27 +1,26 @@
-use crate::config::{AppConfig, ConfigError};
+use crate::config::AppConfig;
 use crate::datapolars;
 use crate::httprequests;
-use crate::main;
+
 use crate::{config, CliError};
 use polars::functions::concat_df_horizontal;
 use polars::prelude::CsvReader;
-use std::str::FromStr;
+
 use std::thread;
 //use config::{AppConfig, ConfigError};
 use crate::datapolars::pl_vstr_to_selects;
 use polars::prelude::*;
-use proto::user_server::{User, UserServer};
+use proto::user_server::User;
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fmt,
     fs::{self, OpenOptions},
     path::Path,
     time::Duration,
 };
 
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 pub mod proto {
     tonic::include_proto!("requestsautomation");
 
@@ -186,7 +185,7 @@ impl User for UserService {
                 .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
             //List for count
-            let tasks = out["Process Instance.Task Details.Key"].as_list();
+            //let tasks = out["Process Instance.Task Details.Key"].as_list();
             //let _ids = out["Process Instance.Task Information.Target User"].as_list();
 
             //CSV write
@@ -243,14 +242,16 @@ impl User for UserService {
     ) -> Result<tonic::Response<proto::ListResponse>, tonic::Status> {
         //Config data
         let conf = self.state.read().await;
-        //let json_data = r#"{"action": "retry"}"#;
-        //let json_data = r#"{"action": "manualComplete"}"#;
-        let mut action = Action::Retry.to_string();
-        match &request.get_ref().action.try_into() {
-            Ok(Action::Retry) => action = Action::Retry.to_string(),
-            Ok(Action::ManualComplete) => action = Action::ManualComplete.to_string(),
-            Err(_) => eprintln!("unknown number"),
+        //let mut action = Action::Retry.to_string();
+        //Match action with enum
+        let action = match &request.get_ref().action.try_into() {
+            Ok(Action::Retry) => Some(Action::Retry.to_string()),
+            Ok(Action::ManualComplete) => Some(Action::ManualComplete.to_string()),
+            Err(_) => {
+                panic!("Unknown action");
+            }
         }
+        .ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
 
         //TODO ACTIONS retry mc list
 
@@ -284,7 +285,7 @@ impl User for UserService {
             //let mut json: Resp;
 
             let mut retry: i32 = 0;
-            while retry < 0 || status != 200 {
+            while retry < 3 && status != 200 {
                 retry += 1;
                 //manage task
                 let resp_result: Result<Response, CliError> = match httprequests::retrycall(
@@ -311,17 +312,27 @@ impl User for UserService {
                 let resp = resp_result.map_err(|e| {
                     tonic::Status::new(tonic::Code::Aborted, format!("No response {:?}", e))
                 })?;
-
-                let json = resp.json().await.map_err(|e| {
+                //info!("resp : {:?}", resp.status().as_u16());
+                //TODO
+                //fails here
+                /* let json = resp.json().await.map_err(|e| {
                     tonic::Status::new(
                         tonic::Code::Cancelled,
                         format!("Unmarshal response failed {:?}", e),
                     )
-                })?;
-
-                tasksdone.push(json);
+                })?; */
+                info!("---: ");
+                let newresp = Resp {
+                    links: vec![Link {
+                        rel: "self".to_string(),
+                        href: puturl.clone(),
+                    }],
+                    id: id.to_string(),
+                    status: resp.status().to_string(),
+                };
+                tasksdone.push(newresp);
             }
-
+            info!("Retry failed");
             let df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();
             let length = df["Process Instance.Task Details.Key"].len() as u32;
 
@@ -345,7 +356,6 @@ impl User for UserService {
     }
 }
 mod tests {
-    use self::config::load_or_initialize;
 
     use super::*;
 

@@ -4,27 +4,17 @@ mod grpcserver;
 mod httprequests;
 use config::ConfigError;
 use grpcserver::proto;
-use polars::functions::concat_df_horizontal;
-use proto::user_server::{User, UserServer};
+use proto::user_server::UserServer;
 
 use polars::prelude::*;
 //test
 //polars::prelude::NamedFrom<std::vec::Vec<serde_json::Value>
-use reqwest::{self, header::CONTENT_TYPE, Client, Error as rError, Response};
+use reqwest::{self, Error as rError};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{
-    collections::HashMap,
-    fmt,
-    fs::{self, OpenOptions},
-    path::Path,
-    thread,
-    time::Duration,
-};
+use std::fmt;
 use tonic::{transport::Server, Code, Status};
 use tracing::{info, subscriber::SetGlobalDefaultError};
-
-use crate::datapolars::pl_vstr_to_selects;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -189,8 +179,8 @@ pub enum CliError {
     GlobalDefaultError(SetGlobalDefaultError),
 }
 
-impl Into<tonic::Status> for CliError {
-    fn into(self) -> tonic::Status {
+impl From<CliError> for tonic::Status {
+    fn from(val: CliError) -> Self {
         Status::new(Code::InvalidArgument, "name is invalid")
     }
 }
@@ -235,9 +225,9 @@ async fn main() -> Result<(), CliError> {
 
     let geturl = format!("{}{}{}", url, urlput, urlget);
 
-    let client = reqwest::Client::new();
+    /*  let client = reqwest::Client::new();
     let json_data = r#"{"action": "retry"}"#;
-    let json_data = r#"{"action": "manualComplete"}"#;
+    let json_data = r#"{"action": "manualComplete"}"#; */
     info!("{}", geturl);
 
     let addr = "[::1]:50051".parse().unwrap();

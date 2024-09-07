@@ -6,7 +6,7 @@ use reqwest::{
 };
 use tracing::info;
 
-use crate::{Account, CliError, Root, Roots, Task};
+use crate::{CliError, Root, Roots, Task};
 
 pub async fn get_data(
     client: &Client,
@@ -23,7 +23,7 @@ pub async fn get_data(
 
     //let mut next_link: String;
     while more && count < fetched {
-        let mut dat = Root::default();
+        let dat = Root::default();
         println!("Entires in url: {:?}", url);
         let data = fetchdata(client, &mut url, username, password, dat).await?;
         println!("Entires in Backend: {:?}", data);
