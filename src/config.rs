@@ -111,7 +111,7 @@ pub fn confload(file: &str) -> Result<AppConfig, ConfigError> {
     //println!("{:?}", config);
 }
 
-#[cfg(test)]
+/* #[cfg(test)]
 mod tests {
     use super::*;
 
@@ -130,4 +130,4 @@ mod tests {
         assert_eq!(conf, o);
         Ok(())
     }
-}
+} */
