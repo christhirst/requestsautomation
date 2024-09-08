@@ -6,7 +6,10 @@ use reqwest::{
 };
 use tracing::info;
 
-use crate::{CliError, Root, Roots, Task};
+use crate::{
+    error::CliError,
+    model::{Root, Roots, Task},
+};
 
 pub async fn get_data(
     client: &Client,

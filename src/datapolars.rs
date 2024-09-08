@@ -1,5 +1,7 @@
-use std::collections::HashMap;
+use crate::model::Task;
 
+use crate::error::CliError;
+use crate::httprequests;
 use polars::{
     chunked_array::ops::SortOptions,
     datatypes::{DataType, TimeUnit},
@@ -14,9 +16,8 @@ use polars::{
 };
 use reqwest::Client;
 use serde_json::Value;
+use std::collections::HashMap;
 use tracing::info;
-
-use crate::{httprequests, CliError, Task};
 
 pub fn get_data(df: DataFrame, filter1: &str, filter2: &str) -> Result<DataFrame, PolarsError> {
     let out = df

@@ -1,8 +1,9 @@
 use crate::config::AppConfig;
 use crate::datapolars;
+use crate::error::CliError;
 use crate::httprequests;
 
-use crate::{config, CliError};
+use crate::config;
 use polars::functions::concat_df_horizontal;
 use polars::prelude::CsvReader;
 
@@ -20,7 +21,7 @@ use std::{
     time::Duration,
 };
 
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 pub mod proto {
     tonic::include_proto!("requestsautomation");
 

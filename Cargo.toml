@@ -26,6 +26,11 @@ tonic = "0.11"
 
 
 [profile.release]
+#link time optimization - better optimization
+lto = true
+#quicker build but slower runtime
+codegen-units = 1
+panic = "abort"
 
 
 [dev-dependencies]
