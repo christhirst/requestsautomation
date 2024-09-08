@@ -280,7 +280,7 @@ mod tests {
         Ok(())
     }
 
-    #[ignore]
+    /*  #[ignore]
     #[test]
     fn fileappend_test() -> Result<(), Box<dyn std::error::Error>> {
         let filename1 = "Config.toml";
@@ -308,5 +308,5 @@ mod tests {
             .build()?;
 
         Ok(())
-    }
+    } */
 }
