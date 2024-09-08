@@ -355,7 +355,7 @@ impl User for UserService {
         Ok(tonic::Response::new(response))
     }
 }
-mod tests {
+/* mod tests {
 
     use super::*;
 
@@ -363,4 +363,4 @@ mod tests {
     fn urlsbuilder_test() -> Result<(), Box<dyn std::error::Error>> {
         todo!();
     }
-}
+} */
