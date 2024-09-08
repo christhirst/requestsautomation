@@ -1,5 +1,6 @@
 .*
 !.gitignore
+
 _*
 # '_' in src dir, ok.
 !**/src/**/_*
@@ -8,10 +9,12 @@ _*
 *.lockb
 *.log
 
-
 target/
 
 !.cargo/
+
+dist/
+out/
 
 *.db3
 *.paraquet
