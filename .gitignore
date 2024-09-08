@@ -1,1 +1,21 @@
-/target
+.*
+!.gitignore
+_*
+# '_' in src dir, ok.
+!**/src/**/_*
+
+*.lock
+*.lockb
+*.log
+
+
+target/
+
+!.cargo/
+
+*.db3
+*.paraquet
+*.map
+*.zip
+*.gz
+*.target*.tgz
