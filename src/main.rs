@@ -281,7 +281,7 @@ mod tests {
     }
 
     #[test]
-    async fn fileappend_test() -> Result<(), Box<dyn std::error::Error>> {
+    fn fileappend_test() -> Result<(), Box<dyn std::error::Error>> {
         let filename1 = "Config.toml";
         let conf = load_or_initialize(filename1).unwrap();
         let urlresult = format!(
@@ -305,16 +305,6 @@ mod tests {
         let service = tonic_reflection::server::Builder::configure()
             .register_encoded_file_descriptor_set(proto::FILE_DESCRIPTOR_SET)
             .build()?;
-
-        Server::builder()
-            .accept_http1(true)
-            //.layer(tower_http::cors::CorsLayer::permissive())
-            .add_service(service)
-            .add_service(UserServer::new(calc))
-            //.add_service(tonic_web::enable(CalculatorServer::new(calc)))
-            //.add_service(AdminServer::with_interceptor(admin, check_auth))
-            .serve(addr)
-            .await?;
 
         Ok(())
     }
