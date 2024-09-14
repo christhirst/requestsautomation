@@ -5,6 +5,8 @@ mod grpcserver;
 mod httprequests;
 mod model;
 
+use std::{env, fmt::Debug};
+
 use error::CliError;
 use grpcserver::proto;
 use proto::user_server::UserServer;
@@ -14,31 +16,41 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
-    let subscriber = tracing_subscriber::FmtSubscriber::new();
-    // use that subscriber to process traces emitted after this point
+    //STRACING setup
+    let envLoglevl = env::var("LOGLEVEL").unwrap_or("INFO".to_string());
+
+    let loglevel = match envLoglevl.as_str() {
+        "ERROR" => tracing::Level::ERROR,
+        "WARN" => tracing::Level::WARN,
+        "INFO" => tracing::Level::INFO,
+        "DEBUG" => tracing::Level::DEBUG,
+        "TRACE" => tracing::Level::TRACE,
+        _ => tracing::Level::INFO,
+    };
+    let subscriber = tracing_subscriber::fmt().with_max_level(loglevel).finish();
+    //use that subscriber to process traces emitted after this point
     tracing::subscriber::set_global_default(subscriber)?;
 
+    //CONFIG from file
     let file = "Config.toml";
     let conf = config::confload(file)?;
     let url = conf.baseurl;
     let urlget = conf.urlget;
     let urlput = conf.urlput;
 
-    info!("Version: {:?}", "v0.0.21");
-
     let geturl = format!("{}{}{}", url, urlput, urlget);
 
-    /*  let client = reqwest::Client::new();
-    let json_data = r#"{"action": "retry"}"#;
-    let json_data = r#"{"action": "manualComplete"}"#; */
-    info!("{}", geturl);
+    info!(
+        "Version: {:?}, LOGLEVEL: {:?}, URL: {:?}",
+        "v0.0.22", envLoglevl, geturl
+    );
 
+    //TODO port from config
     let addr = "[::1]:50051".parse().unwrap();
 
-    //let state = State::default();
-
+    //GRPC server
     let calc = grpcserver::UserService::default();
-
+    //GRPC reflection
     let service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(grpcserver::proto::FILE_DESCRIPTOR_SET)
         .build()
