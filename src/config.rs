@@ -1,6 +1,6 @@
-use std::{fs, io, path::Path};
-
 use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::{fs, io, path::Path};
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -12,6 +12,12 @@ pub enum ConfigError {
 impl From<io::Error> for ConfigError {
     fn from(value: io::Error) -> Self {
         Self::IoError(value)
+    }
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self) // Customize this to your needs
     }
 }
 
