@@ -1,11 +1,13 @@
 mod config;
 mod datapolars;
+mod db;
 mod error;
 mod grpcserver;
 mod httprequests;
 mod model;
-
-use std::{env, fmt::Debug};
+mod types;
+mod wrangle;
+use std::{env, fmt::Debug, sync::Arc};
 
 use error::CliError;
 use grpcserver::proto;
@@ -13,6 +15,8 @@ use proto::user_server::UserServer;
 
 use tonic::transport::Server;
 use tracing::info;
+
+use crate::config::Settings;
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
@@ -33,11 +37,13 @@ async fn main() -> Result<(), CliError> {
 
     //CONFIG from file
     let file = "Config.toml";
-    let conf = config::confload(file)?;
-    let url = conf.baseurl;
-    let urlget = conf.urlget;
-    let urlput = conf.urlput;
+    //let conf = config3::confload(file)?;
 
+    let conf = Settings::new().unwrap();
+
+    let url = &conf.grpc.baseurl.clone();
+    let urlget = &conf.grpc.urlget.clone();
+    let urlput = &conf.grpc.urlput.clone();
     let geturl = format!("{}{}{}", url, urlput, urlget);
 
     info!(
@@ -46,14 +52,24 @@ async fn main() -> Result<(), CliError> {
     );
 
     //TODO port from config
-    let addr = "[::1]:50051".parse().unwrap();
-
+    //let addr = "172.27.214.136:50051".parse().unwrap();
+    let settg = Settings::new().unwrap().grpc_server;
+    let addr = format!("{}:{}", settg.host, settg.port).parse();
     //GRPC server
-    let calc = grpcserver::UserService::default();
+
+    //let state = Arc::new(tokio::sync::RwLock::new(None));
+
+    /* let calc = grpcserver::UserService {
+        state: state,
+        config: None,
+        db: None,
+    }; */
+    let calc = grpcserver::UserService::new().await?;
+
     //GRPC reflection
     let service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(grpcserver::proto::FILE_DESCRIPTOR_SET)
-        .build()
+        .build_v1()
         .unwrap();
 
     Server::builder()
@@ -63,7 +79,7 @@ async fn main() -> Result<(), CliError> {
         .add_service(UserServer::new(calc))
         //.add_service(tonic_web::enable(CalculatorServer::new(calc)))
         //.add_service(AdminServer::with_interceptor(admin, check_auth))
-        .serve(addr)
+        .serve(addr.unwrap())
         .await
         .unwrap();
 
@@ -72,16 +88,17 @@ async fn main() -> Result<(), CliError> {
 
 #[cfg(test)]
 mod tests {
-    use grpcserver::UserService;
+    use std::net::SocketAddr;
 
-    use self::config::load_or_initialize;
+    use grpcserver::UserService;
 
     use super::*;
 
     #[test]
     fn urlsbuilder_test() -> Result<(), Box<dyn std::error::Error>> {
         let filename1 = "Config.toml";
-        let conf = load_or_initialize(filename1).unwrap();
+        //let conf = load_or_initialize(filename1).unwrap();
+        let conf = Settings::new().unwrap().grpc;
         let urlresult = format!(
             "{}/{}+eq+{}",
             conf.baseurl, conf.urlfilter[0].0, conf.urlfilter[0].1[0]

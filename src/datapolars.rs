@@ -11,7 +11,7 @@ use polars::{
         dsl::{col, lit, StrptimeOptions},
         frame::IntoLazy,
     },
-    prelude::NamedFrom,
+    prelude::{NamedFrom, SortMultipleOptions},
     series::Series,
 };
 use reqwest::Client;
@@ -47,9 +47,9 @@ pub fn get_data(df: DataFrame, filter1: &str, filter2: &str) -> Result<DataFrame
             )])
         .with_columns([col("Process Instance.Task Details.Key").cast(DataType::Int64)])
         .sort(
-            "Process Instance.Task Information.Creation Date",
-            SortOptions {
-                descending: false,
+            ["Process Instance.Task Information.Creation Date"],
+            SortMultipleOptions {
+                descending: vec![false],
                 nulls_last: true,
                 ..Default::default()
             },

@@ -1,0 +1,11 @@
+[grpc_server]
+port = "50051"
+host = "127.0.0.1"
+
+[database]
+user = "admin"
+password = "Moskwa-1"
+url = "ux-ti-069ps2e29luilf8m9qq0o620g0.aws-euw1.surreal.cloud"
+token = "eyJhbGciOiJQUzI1NiIsImtpZCI6IjFkNmViYjAyLWM5ZjEtNDg4Zi1iNjhjLWNlMzMzMzU4YzgyOCIsInR5cCI6IkpXVCJ9.eyJhYyI6ImNsb3VkIiwiYXVkIjoiMDY5cHMyZTI5bHVpbGY4bTlxcTBvNjIwZzAiLCJleHAiOjE3NTAxMDAzNjAsImlhdCI6MTc1MDEwMDMwMCwicmwiOlsiT3duZXIiXX0.rjk3h66ghjwViijYQDiz-JqCAau9d8CTvVRU9YrNiUPvlMgAhp40W0bI-GDCLHJfaSYf8hgbuOvIirNX2TL8Iy0X2L7ZvIZRmyC9TatjYlyjIxM-ypX-3-bLKbJDvkYzprsE3IXIFMAvAZUgZV_5_V3n1Ws7QEAQERd_WGB7JjVYwUIgRdtcaM9IchiT5RLs_hkl2yjQ1G5MpC5zeZTpT9xWtWDCYLpt7CEBMbfvhG6Z_qTbfDNfcB5lAPhoqsXoQwNRb1RG935MlWEmQd8NN9IgstvyI1w2d_FuIlEJfzHdr0zo2ivI19B-IXv6JRO5hYYfkfiXqc4Uj6HvvcIAWw"
+namespace = "test"
+database = "test"

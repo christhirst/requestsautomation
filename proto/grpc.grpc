@@ -1,0 +1,5 @@
+grpcurl -plaintext 127.0.0.1:50051 list
+grpcurl -plaintext 127.0.0.1:50051 list requestsautomation.User
+grpcurl -plaintext -d '{"id": 1234, "tags": ["foo","bar"]}' 127.0.0.1:50051 requestsautomation.User.ConfReload
+
+grpcurl -plaintext -d '' 127.0.0.1:50051 requestsautomation.User.ConfReload

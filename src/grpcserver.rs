@@ -1,12 +1,21 @@
-use crate::config::AppConfig;
-use crate::datapolars;
+use crate::config::Database;
+//use crate::config3::AppConfig;
+use crate::db::types::Task;
 use crate::error::CliError;
 use crate::httprequests;
 
-use crate::config;
-use futures::future::ok;
+use crate::Settings;
+use crate::{datapolars, grpcserver};
+
+use chrono::DateTime;
+use chrono::Utc;
+//use crate::config3;
 use polars::functions::concat_df_horizontal;
 use polars::prelude::CsvReader;
+use prost_types::Timestamp;
+use surrealdb::engine::remote::ws::Client;
+use surrealdb::Surreal;
+use tokio::sync::Mutex;
 
 use std::thread;
 use strum_macros::Display;
@@ -14,7 +23,6 @@ use strum_macros::Display;
 use crate::datapolars::pl_vstr_to_selects;
 use polars::prelude::*;
 use proto::user_server::User;
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
@@ -49,33 +57,45 @@ impl TryFrom<i32> for Action {
         }
     }
 }
-type State = std::sync::Arc<tokio::sync::RwLock<AppConfig>>;
+type State = std::sync::Arc<tokio::sync::RwLock<Option<Settings>>>;
+//type DbService = std::sync::Arc<tokio::sync::RwLock<Option<DBService>>>;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
+pub struct DBService {
+    pub conf: Database,
+    pub db: Option<Surreal<Client>>,
+    pub jwt: Option<String>,
+}
+
+#[derive(Debug)]
 pub struct UserService {
-    state: State,
-    config: AppConfig,
-}
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Link {
-    pub rel: String,
-    pub href: String,
+    pub state: State,
+    //pub(crate) config: Option<AppConfig>,
+    pub db: Option<Arc<Mutex<DBService>>>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Resp {
-    pub links: Vec<Link>,
-    pub id: String,
-    pub status: String,
-}
+impl UserService {
+    pub async fn new() -> Result<Self, surrealdb::Error> {
+        let conf = Settings::new().unwrap();
+        let db_conf = conf.database.clone();
+        /* let client = Surreal::new::<Wss>(db_conf.url).await?;
+        let db_ok;
+        if client.authenticate(db_conf.token).await.is_ok() {
+            db_ok = Some(client)
+        } else {
+            db_ok = None
+        }; */
+        let dbs = DBService::new(db_conf).await?;
+        let shared_db_service = Arc::new(Mutex::new(dbs));
+        let state = Arc::new(tokio::sync::RwLock::new(Some(conf)));
+        let calc = grpcserver::UserService {
+            state: state,
+            db: Some(shared_db_service),
+        };
 
-/* impl From<Resp> for proto::Dictionary {
-    fn from(item: Resp) -> Self {
-        todo!()
+        Ok(calc)
     }
-} */
+}
 
 fn action_mapper(re: tonic::Request<proto::ProvAcionRequest>) -> Result<String, CliError> {
     let action = match &re.get_ref().action.try_into() {
@@ -96,12 +116,15 @@ impl User for UserService {
         _request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::ConfigResponse>, tonic::Status> {
         //CONFIG data from file
+        //TODO DB reload
         let file = "Config.toml";
-        let conf = config::confload(file)
-            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+        /* let conf = config3::confload(file)
+        .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
+
+        let conf = Settings::new().unwrap();
         let mut confs = self.state.write().await;
         //CONFIG overwrite pointer
-        *confs = conf;
+        *confs = Some(conf);
 
         Ok(tonic::Response::new(proto::ConfigResponse {
             result: "Reload successful".to_string(),
@@ -111,9 +134,22 @@ impl User for UserService {
     async fn gen_list(
         &self,
         _request: tonic::Request<proto::UserRequest>,
-    ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
-        //TODO Print list to CSV
-        Ok(tonic::Response::new(proto::UserResponse { result: 1 }))
+    ) -> Result<tonic::Response<proto::ListResponse>, tonic::Status> {
+        let mut df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();
+
+        //TODO Print list to CSV + Database
+
+        // Convert chrono::DateTime<Utc> to prost_types::Timestamp
+        let now = Utc::now();
+        let timestamp = Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        };
+
+        Ok(tonic::Response::new(proto::ListResponse {
+            result: vec!["1".to_string()],
+            time: Some(timestamp),
+        }))
     }
     async fn db_delete(
         &self,
@@ -132,8 +168,20 @@ impl User for UserService {
     ) -> Result<tonic::Response<proto::ListResponse>, tonic::Status> {
         //CONFIG data
         let conf = self.state.read().await;
+        let conf = conf.as_ref().ok_or_else(|| {
+            tonic::Status::new(
+                tonic::Code::NotFound,
+                "Configuration not found, please reload",
+            )
+        })?;
+        let conf = &conf.grpc;
+        let timeout = conf.timeout;
         //HTTP Client create
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(timeout))
+            .build()
+            .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?;
+
         //URL create
         let geturl = format!("{}{}{}", &conf.baseurl, conf.urlput, conf.urlget);
         let urllist = httprequests::urlsbuilder(&conf.baseurl, &conf.urlfilter);
@@ -191,49 +239,106 @@ impl User for UserService {
             //let tasks = out["Process Instance.Task Details.Key"].as_list();
             //let _ids = out["Process Instance.Task Information.Target User"].as_list();
 
-            //CSV write
-            let fileexists = !Path::new("path.csv").exists();
-            let mut file = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("path.csv")
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+            if self.db.is_none() {
+                //CSV write
+                let fileexists = !Path::new("path.csv").exists();
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("path.csv")
+                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
-            //CSV write header
-            CsvWriter::new(&mut file)
-                .include_header(fileexists)
-                .finish(&mut out)
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                //CSV write header
+                CsvWriter::new(&mut file)
+                    .include_header(fileexists)
+                    .finish(&mut out)
+                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
-            //DATAFRAME collect
-            let mut dfa = out
-                .clone()
-                .lazy()
-                .select([col("Process Instance.Task Information.Target User")])
-                .collect()
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                //DATAFRAME collect
+                let mut dfa = out
+                    .clone()
+                    .lazy()
+                    .select([col("Process Instance.Task Information.Target User")])
+                    .collect()
+                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
-            //CSV write
-            let mut file = std::fs::File::create("ids.csv")
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                //CSV write
+                let mut file = std::fs::File::create("ids.csv")
+                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
-            //CSV write
-            CsvWriter::new(&mut file)
-                .finish(&mut dfa)
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                //CSV write
+                CsvWriter::new(&mut file)
+                    .finish(&mut dfa)
+                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
-            //CSV read
-            let contents =
-                fs::read_to_string("ids.csv").expect("Should have been able to read the file");
+                //CSV read
+                let contents =
+                    fs::read_to_string("ids.csv").expect("Should have been able to read the file");
 
-            //CSV read
-            let splitted: Vec<&str> = contents.split('\n').collect();
-            info!("Ids: {:?}", splitted);
+                //CSV read
+                let splitted: Vec<&str> = contents.split('\n').collect();
+                info!("Ids: {:?}", splitted);
+            } else {
+                for idx in 0..out.height() {
+                    let row = out.get_row(idx).unwrap().0;
+
+                    //Convert DateTime to DateTime<Utc>
+                    let s = format!("{}Z", row[0]);
+                    let date = s.parse::<DateTime<Utc>>().unwrap();
+
+                    let task_row = Task {
+                        process_definition_tasks_task_name: row[3].to_string(),
+                        process_instance_task_information_target_user: row[4].to_string(),
+                        process_instance_task_details_key: row[2].to_string(),
+                        objects_name: row[1].to_string(),
+                        process_instance_task_information_creation_date: date,
+                    };
+                    let mut db = self.db.as_ref().unwrap().lock().await;
+                    db.db_create_entry("task", task_row.clone())
+                        .await
+                        .unwrap_or_else(|e| {
+                            warn!("Failed to create entry: {:?}", e);
+                            panic!("Failed to create entry: {:?}", e);
+                        });
+
+                    /*  &self
+                    .db
+                    .as_ref()
+                    .unwrap()
+                    .db_create_entry("task", task_row.clone())
+                    .await
+                    .unwrap_or_else(|e| {
+                        warn!("Failed to create entry: {:?}", e);
+                        panic!("Failed to create entry: {:?}", e);
+                    }); */
+
+                    println!("{:?}", task_row);
+
+                    println!("{:?}", row);
+                }
+
+                /*  dfa.iter().for_each(|s| {
+                                   info!("Target User: {:?}", s);
+                               });
+                */
+                /* dfa.iter().for_each(|s| {
+                    info!(
+                        "Target User: {:?}",
+                        s.iter().map(|v| v.to_string()).collect::<Vec<String>>()
+                    );
+                }); */
+            }
             //new data from rest api
         }
+        let now = Utc::now();
+        let timestamp = Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        };
 
         Ok(tonic::Response::new(proto::ListResponse {
             result: vec!["test".to_string()],
+            time: Some(timestamp),
         }))
     }
 
@@ -246,116 +351,163 @@ impl User for UserService {
 
         //MATCH action with enum Protobuf to ENUM
         let action = action_mapper(request)?;
+        let conf = &conf
+            .as_ref()
+            .ok_or_else(|| {
+                tonic::Status::new(
+                    tonic::Code::NotFound,
+                    "Configuration not found, please reload",
+                )
+            })?
+            .grpc;
 
-        //LOAD data from CSV
-        let taskstosubmit = CsvReader::from_path(conf.filelist.clone())
-            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?
-            .finish()
-            .unwrap()["Process Instance.Task Details.Key"]
-            .as_list();
+        if self.db.is_none() {
+            //LOAD data from CSV
+            let taskstosubmit = CsvReader::from_path(conf.filelist.clone())
+                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?
+                .finish()
+                .unwrap()["Process Instance.Task Details.Key"]
+                .as_list();
 
-        //let mut tasksdone: Vec<Resp> = vec![];
-        //info!("Taskstosubmit: {:?}", taskstosubmit);
+            //let mut tasksdone: Vec<Resp> = vec![];
+            //info!("Taskstosubmit: {:?}", taskstosubmit);
 
-        //LOOP setup
-        let client = reqwest::Client::new();
-        let mut book_reviews: HashMap<String, proto::Task> = HashMap::new();
-        for i in &taskstosubmit {
-            //TODO Change to endpoint list of tasks
-            if conf.checkmode {
-                break;
-            }
-
-            //EXTRACT data from file
-            let o = i
-                .ok_or(CliError::EntityNotFound { entity: "", id: 0 })
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-            let id = o.get(0).unwrap();
-
-            let puturl = format!("{}{}{}{}", conf.baseurl, conf.urlput, "/", id);
-            info!("Id: {id} PutUrl: {puturl}");
+            //CLIENT SETUP
+            let timeout = conf.timeout;
+            let client = reqwest::Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(timeout))
+                .timeout(std::time::Duration::from_secs(timeout))
+                .build()
+                .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?;
 
             //LOOP setup
-            let status: u16 = 0;
-            let mut retry: i32 = 0;
-            while retry < 3 && status != 200 {
-                retry += 1;
-
-                let resp_result: Result<(), CliError> = match httprequests::retrycall(
-                    &client,
-                    &puturl.clone(),
-                    action.clone(),
-                    &conf.username.clone(),
-                    &conf.password.clone(),
-                )
-                .await
-                {
-                    Ok(response) => {
-                        info!("Status: {}", response.status().as_u16());
-                        let newresp = proto::Task {
-                            /* links: vec![Link {
-                                rel: "self".to_string(),
-                                href: puturl.clone(),
-                            }], */
-                            id: id.to_string(),
-                            status: response.status().to_string(),
-                        };
-                        //tasksdone.push(newresp);
-                        book_reviews.insert(id.to_string(), newresp);
-                        Ok(())
-                    }
-                    Err(e) => {
-                        warn!("Retry failed: {e:?}");
-                        let newresp = proto::Task {
-                            /* links: vec![Link {
-                                rel: "self".to_string(),
-                                href: puturl.clone(),
-                            }], */
-                            id: id.to_string(),
-                            status: 400.to_string(),
-                        };
-                        //tasksdone.push(newresp);
-                        book_reviews.insert(id.to_string(), newresp);
-                        thread::sleep(Duration::from_secs(1));
-                        Err(e)
-                    }
-                };
-                if resp_result.is_err() {
-                    warn!("Failed for: {:?}", resp_result);
+            //LIST of retried tasks
+            let mut tasks_retried: HashMap<String, proto::Task> = HashMap::new();
+            //LIST interate
+            for i in &taskstosubmit {
+                //TODO Change to endpoint list of tasks
+                if conf.checkmode {
+                    break;
                 }
-            }
 
-            let df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();
-            let length = df["Process Instance.Task Details.Key"].len() as u32;
-
-            if status == 200 {
-                let mut df_a = df
-                    .clone()
-                    .lazy()
-                    .slice(1, length - 1)
-                    .collect()
+                //EXTRACT data from Struct
+                let o = i
+                    .ok_or(CliError::EntityNotFound { entity: "", id: 0 })
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-                let mut file = std::fs::File::create("path.csv")
+                //LIST get first value
+                let id = o
+                    .get(0)
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-                CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
-                //retry += 1;
-            }
 
-            thread::sleep(Duration::from_secs(1));
+                //URL generate PUT
+                let puturl = format!("{}{}{}{}", conf.baseurl, conf.urlput, "/", id);
+                info!("Id: {id} PutUrl: {puturl}");
+
+                //LOOP setup
+                let status: u16 = 0;
+                let mut retry: i32 = 0;
+                //RETRY Test Config
+                while retry < 3 && status != 200 {
+                    retry += 1;
+
+                    //TODO extract to function
+                    //HTTP CALL
+                    let resp_result: Result<(), CliError> = match httprequests::retrycall(
+                        &client,
+                        &puturl.clone(),
+                        action.clone(),
+                        &conf.username.clone(),
+                        &conf.password.clone(),
+                    )
+                    .await
+                    {
+                        Ok(response) => {
+                            info!("Status: {}", response.status().as_u16());
+                            let newresp = proto::Task {
+                                /* links: vec![Link {
+                                    rel: "self".to_string(),
+                                    href: puturl.clone(),
+                                }], */
+                                id: id.to_string(),
+                                status: response.status().to_string(),
+                            };
+                            //tasksdone.push(newresp);
+                            tasks_retried.insert(id.to_string(), newresp);
+                            Ok(())
+                        }
+                        Err(e) => {
+                            warn!("Retry failed: {e:?}");
+                            let newresp = proto::Task {
+                                id: id.to_string(),
+                                status: 400.to_string(),
+                            };
+                            //tasksdone.push(newresp);
+                            tasks_retried.insert(id.to_string(), newresp);
+                            thread::sleep(Duration::from_secs(1));
+                            Err(e)
+                        }
+                    };
+                    if resp_result.is_err() {
+                        warn!("Failed for: {:?}", resp_result);
+                    }
+                }
+                if true {
+                    //LIST POP First
+                    let df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();
+                    let length = df["Process Instance.Task Details.Key"].len() as u32;
+                    if status == 200 {
+                        let mut df_a =
+                            df.clone()
+                                .lazy()
+                                .slice(1, length - 1)
+                                .collect()
+                                .map_err(|e| {
+                                    tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
+                                })?;
+                        let mut file = std::fs::File::create("path.csv").map_err(|e| {
+                            tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
+                        })?;
+                        CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
+                        //retry += 1;
+                    }
+                } else {
+                    //let db = self.db_delete("task").await;
+                    //.unwrap_or_else(|| create_db_client());
+
+                    //DATABASE task delete
+                }
+
+                thread::sleep(Duration::from_millis(conf.sleep));
+            }
+            let response = proto::Dictionary {
+                pairs: tasks_retried,
+            };
+            Ok(tonic::Response::new(response))
+        } else {
+            //SELECT FROM DB
+            while true {
+                let mut db = self.db.as_ref().unwrap().lock().await;
+                let ii = db
+                    .db_get_first_row("task")
+                    .await
+                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                //Process Instance.Task Details.Key
+                let id = ii.process_instance_task_details_key.clone();
+
+                db.db_delete_row_first()
+                    .await
+                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                thread::sleep(Duration::from_millis(conf.sleep));
+            }
+            Ok(tonic::Response::new(todo!()))
         }
-        let response = proto::Dictionary {
-            pairs: book_reviews,
-        };
-        Ok(tonic::Response::new(response))
     }
 }
 
-/* mod tests {
+mod tests {
 
     use super::*;
 
     #[test]
-    fn urlsbuilder_test() -> Result<(), Box<dyn std::error::Error>> {
-        todo!();
-    }
-} */
+    fn urlsbuilder_test() {}
+}

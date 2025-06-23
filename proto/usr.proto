@@ -1,12 +1,12 @@
 syntax = "proto3";
-
+import "google/protobuf/timestamp.proto";
 package requestsautomation;
 
 
 //TODO delete db
 service User {
   rpc ConfReload(UserRequest) returns (ConfigResponse);
-  rpc GenList(UserRequest) returns (UserResponse);
+  rpc GenList(UserRequest) returns (ListResponse);
   rpc DbDelete(UserRequest) returns (UserResponse);
   rpc ProvTasksList(UserRequest) returns (ListResponse);
   rpc ProvAction(ProvAcionRequest) returns (Dictionary);
@@ -24,14 +24,16 @@ message Task {
   string status = 2;
 }
 
-
 message Dictionary {
   map<string, Task> pairs = 1;
 }
 
 message ProvAcionRequest {  ActionType action  = 1;}
 
-message ListResponse { repeated string result = 4 ; }
+message ListResponse {  
+  google.protobuf.Timestamp time = 1;
+  repeated string result = 2; 
+}
 
 message UserResponse { int64 result = 1; }
 
