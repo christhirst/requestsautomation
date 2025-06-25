@@ -287,6 +287,7 @@ impl User for UserService {
                     let date = s.parse::<DateTime<Utc>>().unwrap();
 
                     let task_row = Task {
+                        id: None,
                         process_definition_tasks_task_name: row[3].to_string(),
                         process_instance_task_information_target_user: row[4].to_string(),
                         process_instance_task_details_key: row[2].to_string(),
@@ -471,6 +472,11 @@ impl User for UserService {
                         //retry += 1;
                     }
                 } else {
+                    let mut db = self.db.as_ref().unwrap().lock().await;
+                    let row = db.db_get_first_row("task").await.map_err(|e| {
+                        tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
+                    })?;
+
                     //let db = self.db_delete("task").await;
                     //.unwrap_or_else(|| create_db_client());
 
@@ -492,9 +498,10 @@ impl User for UserService {
                     .await
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
                 //Process Instance.Task Details.Key
-                let id = ii.process_instance_task_details_key.clone();
+                let task_id = ii.process_instance_task_details_key.clone();
+                let entry_id = ii.id.unwrap();
 
-                db.db_delete_row_first()
+                db.db_delete_by_id(entry_id)
                     .await
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
                 thread::sleep(Duration::from_millis(conf.sleep));
@@ -505,8 +512,6 @@ impl User for UserService {
 }
 
 mod tests {
-
-    use super::*;
 
     #[test]
     fn urlsbuilder_test() {}

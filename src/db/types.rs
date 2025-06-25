@@ -4,6 +4,7 @@ use surrealdb::RecordId;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
+    pub id: Option<RecordId>,
     pub process_instance_task_information_creation_date: DateTime<Utc>,
     pub objects_name: String,
     pub process_instance_task_details_key: String,
@@ -11,6 +12,7 @@ pub struct Task {
     pub process_instance_task_information_target_user: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct Record {
     pub id: RecordId,

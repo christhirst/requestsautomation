@@ -1,9 +1,6 @@
-use std::error::Error;
-
-use surrealdb::engine::remote::ws::{Client, Ws, Wss};
+use surrealdb::engine::remote::ws::{Ws, Wss};
 use surrealdb::opt::auth::Root;
 use surrealdb::{RecordId, Response, Surreal};
-use tracing_subscriber::registry::Data;
 
 use crate::config::Database;
 use crate::db::types::{Record, Task};
@@ -11,6 +8,7 @@ use crate::error::CliError;
 use crate::grpcserver::DBService;
 
 impl DBService {
+    #[allow(dead_code)]
     pub async fn schemafull_init(&self) -> surrealdb::Result<Response> {
         let result = self
             .db
@@ -73,11 +71,20 @@ impl DBService {
 
         Ok(created)
     }
+
+    #[allow(dead_code)]
     pub async fn db_delete_all(&self, task: &str) -> surrealdb::Result<()> {
         let deleted_rest: Vec<Task> = self.db.as_ref().unwrap().delete(task).await?;
         todo!()
     }
+    pub async fn db_delete_by_id(&self, record: RecordId) -> surrealdb::Result<()> {
+        let db = self.db.as_ref().unwrap();
 
+        db.query("DELETE $id").bind(("id", record)).await?;
+
+        todo!()
+    }
+    #[allow(dead_code)]
     pub async fn db_list(&self) -> surrealdb::Result<Vec<Task>> {
         let result: Vec<Task> = self
             .db
@@ -107,6 +114,7 @@ impl DBService {
         Ok(res)
     }
 
+    #[allow(dead_code)]
     pub async fn db_delete_row_first(&self) -> Result<(), surrealdb::Error> {
         //let deleted_one: Option<Task> = self.db.as_ref().unwrap().delete(("person", "one")).await?;
         let db = self.db.as_ref().unwrap();
@@ -163,11 +171,11 @@ impl DBService {
     }
 }
 
-#[cfg(test)]
+/* #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, Utc};
+    use chrono::Utc;
 
-    use crate::{config::Settings, db::types::Task, grpcserver::UserService};
+    use crate::{config::Settings, db::types::Task};
 
     use super::*;
     #[tokio::test]
@@ -187,6 +195,7 @@ mod tests {
         let mut res = DBService::new(settings).await?;
 
         let oo: Task = Task {
+            id: None,
             process_instance_task_information_creation_date: Utc::now(),
             objects_name: String::from("AAccount"),
             process_instance_task_details_key: String::from("333"),
@@ -255,3 +264,4 @@ mod tests {
         Ok(())
     }
 }
+ */

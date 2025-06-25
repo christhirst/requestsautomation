@@ -3,7 +3,6 @@ use crate::model::Task;
 use crate::error::CliError;
 use crate::httprequests;
 use polars::{
-    chunked_array::ops::SortOptions,
     datatypes::{DataType, TimeUnit},
     error::PolarsError,
     frame::DataFrame,

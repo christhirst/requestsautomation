@@ -7,7 +7,7 @@ mod httprequests;
 mod model;
 mod types;
 mod wrangle;
-use std::{env, fmt::Debug, sync::Arc};
+use std::env;
 
 use error::CliError;
 use grpcserver::proto;
@@ -21,9 +21,9 @@ use crate::config::Settings;
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
     //STRACING setup
-    let envLoglevl = env::var("LOGLEVEL").unwrap_or("INFO".to_string());
+    let env_loglevl = env::var("LOGLEVEL").unwrap_or("INFO".to_string());
 
-    let loglevel = match envLoglevl.as_str() {
+    let loglevel = match env_loglevl.as_str() {
         "ERROR" => tracing::Level::ERROR,
         "WARN" => tracing::Level::WARN,
         "INFO" => tracing::Level::INFO,
@@ -36,7 +36,7 @@ async fn main() -> Result<(), CliError> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     //CONFIG from file
-    let file = "Config.toml";
+    //let file = "Config.toml";
     //let conf = config3::confload(file)?;
 
     let conf = Settings::new().unwrap();
@@ -48,7 +48,7 @@ async fn main() -> Result<(), CliError> {
 
     info!(
         "Version: {:?}, LOGLEVEL: {:?}, URL: {:?}",
-        "v0.0.22", envLoglevl, geturl
+        "v0.0.22", env_loglevl, geturl
     );
 
     //TODO port from config
@@ -88,10 +88,6 @@ async fn main() -> Result<(), CliError> {
 
 #[cfg(test)]
 mod tests {
-    use std::net::SocketAddr;
-
-    use grpcserver::UserService;
-
     use super::*;
 
     #[test]
