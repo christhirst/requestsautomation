@@ -18,7 +18,7 @@ pub async fn get_data(
     password: &str,
     fetched: u32,
 ) -> Result<Vec<Task>, CliError> {
-    let mut alltasks: Vec<Task> = vec![];
+    let alltasks: Vec<Task> = vec![];
 
     let more = true;
     let mut count = 0;
@@ -31,9 +31,9 @@ pub async fn get_data(
         let data = fetchdata(client, &mut url, username, password, dat).await?;
         println!("Entires in Backend: {:?}", data);
         match data {
-            Roots::Root(d) => {
+            Roots::Root(_d) => {
                 //data = Roots::RootAccount(d);
-                let more = fetchdatass(d, &mut alltasks, &mut url);
+                //let more = fetchdatass(d, &mut alltasks, &mut url);
                 //let gotcount = count;
             } //Roots::RootAccount(d) => data = Roots::RootAccount(d),
         }
@@ -44,7 +44,7 @@ pub async fn get_data(
     Ok(alltasks)
 }
 
-fn fetchdatass(mut data: Root, mut alltasks: &mut Vec<Task>, url: &mut String) -> (bool) {
+fn fetchdatass(data: Root, alltasks: &mut Vec<Task>, url: &mut String) -> (bool) {
     alltasks.append(&mut data.tasks.unwrap());
     let more = data.has_more;
     let mut next_link: String;

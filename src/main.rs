@@ -92,13 +92,13 @@ mod tests {
 
     #[test]
     fn urlsbuilder_test() -> Result<(), Box<dyn std::error::Error>> {
-        let filename1 = "Config.toml";
+        //let filename1 = "Config.toml";
         //let conf = load_or_initialize(filename1).unwrap();
         let conf = Settings::new().unwrap().grpc;
-        let urlresult = format!(
+        /* let urlresult = format!(
             "{}/{}+eq+{}",
             conf.baseurl, conf.urlfilter[0].0, conf.urlfilter[0].1[0]
-        );
+        ); */
 
         let n = httprequests::urlsbuilder(&conf.baseurl, &conf.urlfilter);
         println!("{n:?}");

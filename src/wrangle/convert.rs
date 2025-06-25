@@ -84,6 +84,8 @@ mod tests {
         assert_eq!(dd.0.len(), 1);
         assert_eq!(dd.1.len(), 3);
     }
+
+    #[test]
     fn date_convert() {
         //2024-01-02T14:51:04.000
         let mut df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();

@@ -113,7 +113,7 @@ pub struct Properties {
 pub struct Users {
     #[serde(rename = "type")]
     pub type_field: String,
-    pub items: Items<String>,
+    //pub items: Items<String>,
 }
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 struct Items<T> {
