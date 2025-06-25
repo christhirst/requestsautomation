@@ -24,7 +24,8 @@ RUN cargo build --release --target x86_64-unknown-linux-musl --bin requestsautom
 
 FROM gcr.io/distroless/cc AS runtime
 #WORKDIR /usr/local/bin/app
-COPY --from=planner /app/Config.toml /
+COPY --from=planner /app/config /app/config
+#COPY --from=planner /app/Config.toml /
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/requestsautomation /usr/local/bin/app
 
 EXPOSE 8180 8280 50051
