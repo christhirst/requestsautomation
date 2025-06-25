@@ -513,6 +513,6 @@ impl User for UserService {
 
 mod tests {
 
-    #[test]
-    fn urlsbuilder_test() {}
+    /* #[test]
+    fn urlsbuilder_test() {} */
 }

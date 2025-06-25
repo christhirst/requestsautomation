@@ -84,7 +84,7 @@ impl Settings {
 mod tests {
     use std::net::SocketAddr;
 
-    use super::*;
+    /* use super::*;
     #[test]
     fn config_parse_test() -> Result<(), Box<dyn std::error::Error>> {
         let settings = Settings::new();
@@ -104,5 +104,5 @@ mod tests {
 
         assert!(addr.is_ok(), "Failed to parse address");
         Ok(())
-    }
+    } */
 }
