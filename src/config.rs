@@ -52,18 +52,33 @@ pub(crate) struct Settings {
 
 impl Settings {
     pub(crate) fn new() -> Result<Self, ConfigError> {
+        let paths;
+        match env::current_dir() {
+            Ok(path) => {
+                println!("Current directory: {}", path.display());
+                paths = path;
+            }
+            Err(e) => {
+                paths = "".into();
+                eprintln!("Error getting current directory: {}", e)
+            }
+        }
+        let paths = paths.join("config");
+        println!("Current directory: {}", paths.display());
         let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
 
         let s = Config::builder()
             // Start off by merging in the "default" configuration file
-            .add_source(File::with_name("config/default"))
+            .add_source(File::with_name(paths.join("default").to_str().unwrap()))
             // Add in the current environment file
             // Default to 'development' env
             // Note that this file is _optional_
-            .add_source(File::with_name(&format!("config/{run_mode}")).required(false))
+            .add_source(
+                File::with_name(&format!("{}/{}", paths.display(), run_mode)).required(false),
+            )
             // Add in a local configuration file
             // This file shouldn't be checked in to git
-            .add_source(File::with_name("config/local").required(false))
+            .add_source(File::with_name(&format!("{}/local", paths.display())).required(false))
             // Add in settings from the environment (with a prefix of APP)
             // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
             .add_source(Environment::with_prefix("app"))
@@ -84,17 +99,17 @@ impl Settings {
 mod tests {
     use std::net::SocketAddr;
 
-    /* use super::*;
+    use super::*;
     #[test]
     fn config_parse_test() -> Result<(), Box<dyn std::error::Error>> {
         let settings = Settings::new();
         // Print out our settings
         println!("{settings:?}");
-        //panic!("Test failed, this is a panic to test the error handling in the test framework");
+        panic!("Test failed, this is a panic to test the error handling in the test framework");
         assert!(settings.is_ok(), "Failed to parse settings");
         Ok(())
     }
-
+    /*
     #[test]
     fn url_converter() -> Result<(), Box<dyn std::error::Error>> {
         let settg = Settings::new().unwrap().grpc_server;

@@ -1,6 +1,6 @@
 .*
 !.gitignore
-config/default.toml
+config/local.toml
 _*
 # '_' in src dir, ok.
 !**/src/**/_*
