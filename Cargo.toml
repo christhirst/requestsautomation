@@ -12,7 +12,7 @@ unsave_code = "forbid"
 
 [dependencies]
 num-traits = "0.2"
-reqwest = { version = "0.12", features = [
+reqwest = { version = "0.12", default-features = false, features = [
     "rustls-tls",
     "json",
 ] } # reqwest with JSON parsing support
