@@ -13,6 +13,7 @@ unsave_code = "forbid"
 [dependencies]
 num-traits = "0.2"
 reqwest = { version = "0.12", features = [
+    "rustls-tls",
     "json",
 ] } # reqwest with JSON parsing support
 futures = "0.3" # for our async / await blocks
