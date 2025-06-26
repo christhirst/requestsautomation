@@ -1,7 +1,18 @@
 FROM clux/muslrust:stable as chef
 RUN apt-get update && apt-get install -y libssl-dev pkg-config
 
-ENV OPENSSL_DIR=/usr/local/ssl
+
+# Build OpenSSL statically
+WORKDIR /opt
+RUN curl -LO https://www.openssl.org/source/openssl-1.1.1w.tar.gz \
+    && tar xzf openssl-1.1.1w.tar.gz \
+    && cd openssl-1.1.1w \
+    && CC=musl-gcc ./Configure no-shared no-dso linux-x86_64 --prefix=/usr/local/openssl \
+    && make -j$(nproc) && make install_sw
+# Set environment variables for openssl-sys
+ENV OPENSSL_STATIC=1
+ENV OPENSSL_DIR=/usr/local/openssl
+
 ENV PROTOC=/usr/bin/protoc
 RUN cargo install cargo-chef
 WORKDIR /app
