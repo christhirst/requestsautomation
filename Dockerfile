@@ -1,5 +1,6 @@
 FROM clux/muslrust:stable as chef
-RUN sudo apk add --no-cache openssl-dev pkgconf
+RUN apt-get update && apt-get install -y libssl-dev pkg-config
+
 
 ENV PROTOC=/usr/bin/protoc
 RUN cargo install cargo-chef
