@@ -1,7 +1,7 @@
 FROM clux/muslrust:stable as chef
 RUN apt-get update && apt-get install -y libssl-dev pkg-config
 
-
+ENV OPENSSL_DIR=/usr/local/ssl
 ENV PROTOC=/usr/bin/protoc
 RUN cargo install cargo-chef
 WORKDIR /app
