@@ -15,7 +15,11 @@ COPY --from=planner /app/recipe.json recipe.json
 
 RUN cargo chef cook --release --target x86_64-unknown-linux-musl --recipe-path recipe.json
 # Copy source code from previous stage
-COPY . .
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY proto ./proto
+# Add only what's needed to build
+
 # Build application
 RUN cargo build --release --target x86_64-unknown-linux-musl --bin requestsautomation
 RUN cargo clean
