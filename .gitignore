@@ -4,7 +4,9 @@ config/local.toml
 _*
 # '_' in src dir, ok.
 !**/src/**/_*
-
+target/
+.git/
+tests/
 *.lock
 *.lockb
 *.log
