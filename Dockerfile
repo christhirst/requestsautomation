@@ -9,9 +9,11 @@ WORKDIR /app
 FROM chef AS planner
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
+
+# Build & cache dependencies
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
-# Build & cache dependencies
+
 
 RUN cargo chef cook --release --target x86_64-unknown-linux-musl --recipe-path recipe.json
 # Copy source code from previous stage
@@ -24,12 +26,13 @@ COPY build.rs ./
 
 # Build application
 RUN cargo build --release --target x86_64-unknown-linux-musl --bin requestsautomation
-RUN cargo clean
+#RUN cargo clean
 
 FROM gcr.io/distroless/cc AS runtime
 #WORKDIR /usr/local/bin/app
 COPY --from=planner /app/config /app/config
 #COPY --from=planner /app/Config.toml /
+
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/requestsautomation /app
 
 EXPOSE 8180 8280 50051
