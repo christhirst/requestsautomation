@@ -18,6 +18,7 @@ RUN cargo chef cook --release --target x86_64-unknown-linux-musl --recipe-path r
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY proto ./proto
+COPY build.rs ./
 # Add only what's needed to build
 
 # Build application
