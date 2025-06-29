@@ -48,6 +48,8 @@ pub(crate) struct Settings {
     pub grpc: AppConfig,
     pub grpc_server: GrpcServer,
     pub database: Database,
+    pub db: bool,         // Flag to indicate if DB is used
+    pub loglevel: String, // Log level for the application
 }
 
 impl Settings {
@@ -98,18 +100,18 @@ impl Settings {
 mod tests {
     use std::net::SocketAddr;
 
-    /* use super::*;
+    use super::*;
     #[test]
     fn config_parse_test() -> Result<(), Box<dyn std::error::Error>> {
         let settings = Settings::new();
         // Print out our settings
         println!("{settings:?}");
-        panic!("Test failed, this is a panic to test the error handling in the test framework");
+        //panic!("Test failed, this is a panic to test the error handling in the test framework");
         assert!(settings.is_ok(), "Failed to parse settings");
         Ok(())
-    } */
-    /*
-    #[test]
+    }
+
+    /* #[test]
     fn url_converter() -> Result<(), Box<dyn std::error::Error>> {
         let settg = Settings::new().unwrap().grpc_server;
         print!("Address: {:?}", settg);
@@ -118,5 +120,5 @@ mod tests {
 
         assert!(addr.is_ok(), "Failed to parse address");
         Ok(())
-    } */
+    }  */
 }

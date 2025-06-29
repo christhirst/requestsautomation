@@ -76,21 +76,23 @@ pub struct UserService {
 
 impl UserService {
     pub async fn new() -> Result<Self, surrealdb::Error> {
+        info!("Loading configuration");
         let conf = Settings::new().unwrap();
         let db_conf = conf.database.clone();
-        /* let client = Surreal::new::<Wss>(db_conf.url).await?;
-        let db_ok;
-        if client.authenticate(db_conf.token).await.is_ok() {
-            db_ok = Some(client)
+
+        let mut db = None;
+        if conf.db {
+            info!("DB enabled");
+            let dbs = DBService::new(db_conf).await?;
+            let shared_db_service = Arc::new(Mutex::new(dbs));
+            db = Some(shared_db_service);
         } else {
-            db_ok = None
-        }; */
-        let dbs = DBService::new(db_conf).await?;
-        let shared_db_service = Arc::new(Mutex::new(dbs));
+            info!("DB disabled");
+        }
         let state = Arc::new(tokio::sync::RwLock::new(Some(conf)));
         let calc = grpcserver::UserService {
             state: state,
-            db: Some(shared_db_service),
+            db: db,
         };
 
         Ok(calc)
@@ -352,6 +354,7 @@ impl User for UserService {
 
         //MATCH action with enum Protobuf to ENUM
         let action = action_mapper(request)?;
+        let db_mod = conf.as_ref().map_or(false, |c| c.db);
         let conf = &conf
             .as_ref()
             .ok_or_else(|| {
@@ -361,23 +364,20 @@ impl User for UserService {
                 )
             })?
             .grpc;
+        let path = conf.filelist.clone();
 
         if self.db.is_none() {
             //LOAD data from CSV
-            let taskstosubmit = CsvReader::from_path(conf.filelist.clone())
+            let taskstosubmit = CsvReader::from_path(&path)
                 .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?
                 .finish()
                 .unwrap()["Process Instance.Task Details.Key"]
                 .as_list();
 
-            //let mut tasksdone: Vec<Resp> = vec![];
-            //info!("Taskstosubmit: {:?}", taskstosubmit);
-
             //CLIENT SETUP
-            let timeout = conf.timeout;
             let client = reqwest::Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(timeout))
-                .timeout(std::time::Duration::from_secs(timeout))
+                .connect_timeout(std::time::Duration::from_secs(conf.timeout))
+                .timeout(std::time::Duration::from_secs(conf.timeout))
                 .build()
                 .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?;
 
@@ -408,9 +408,9 @@ impl User for UserService {
                 let status: u16 = 0;
                 let mut retry: i32 = 0;
                 //RETRY Test Config
-                while retry < 3 {
+                while retry < 3 && status != 200 {
                     retry += 1;
-
+                    info!("retry: {retry} ");
                     //TODO extract to function
                     //HTTP CALL
                     let resp_result: Result<(), CliError> = match httprequests::retrycall(
@@ -453,25 +453,22 @@ impl User for UserService {
                         warn!("Failed for: {:?}", resp_result);
                     }
                 }
-                if true {
+                if db_mod {
                     //LIST POP First
-                    let df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();
+                    let df = CsvReader::from_path(&path).unwrap().finish().unwrap();
                     let length = df["Process Instance.Task Details.Key"].len() as u32;
-                    if status == 200 {
-                        let mut df_a =
-                            df.clone()
-                                .lazy()
-                                .slice(1, length - 1)
-                                .collect()
-                                .map_err(|e| {
-                                    tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
-                                })?;
-                        let mut file = std::fs::File::create("path.csv").map_err(|e| {
-                            tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
-                        })?;
-                        CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
-                        //retry += 1;
-                    }
+                    let mut df_a =
+                        df.clone()
+                            .lazy()
+                            .slice(1, length - 1)
+                            .collect()
+                            .map_err(|e| {
+                                tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
+                            })?;
+                    let mut file = std::fs::File::create(&path).map_err(|e| {
+                        tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
+                    })?;
+                    CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
                 } else {
                     let mut db = self.db.as_ref().unwrap().lock().await;
                     let row = db.db_get_first_row("task").await.map_err(|e| {

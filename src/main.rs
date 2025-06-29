@@ -20,8 +20,10 @@ use crate::config::Settings;
 
 #[tokio::main]
 async fn main() -> Result<(), CliError> {
+    //CONFIG read
+    let conf = Settings::new().unwrap();
     //STRACING setup
-    let env_loglevl = env::var("LOGLEVEL").unwrap_or("INFO".to_string());
+    let env_loglevl = env::var("LOGLEVEL").unwrap_or(conf.loglevel);
 
     let loglevel = match env_loglevl.as_str() {
         "ERROR" => tracing::Level::ERROR,
@@ -35,10 +37,6 @@ async fn main() -> Result<(), CliError> {
     //use that subscriber to process traces emitted after this point
     tracing::subscriber::set_global_default(subscriber)?;
 
-    //CONFIG from file
-    //let file = "Config.toml";
-    //let conf = config3::confload(file)?;
-
     let conf = Settings::new().unwrap();
 
     let url = &conf.grpc.baseurl.clone();
@@ -48,11 +46,9 @@ async fn main() -> Result<(), CliError> {
 
     info!(
         "Version: {:?}, LOGLEVEL: {:?}, URL: {:?}",
-        "v0.0.22", env_loglevl, geturl
+        "v0.0.24", env_loglevl, geturl
     );
 
-    //TODO port from config
-    //let addr = "172.27.214.136:50051".parse().unwrap();
     let settg = Settings::new().unwrap().grpc_server;
     let addr = format!("{}:{}", settg.host, settg.port).parse();
     //GRPC server
@@ -64,6 +60,7 @@ async fn main() -> Result<(), CliError> {
         config: None,
         db: None,
     }; */
+
     let calc = grpcserver::UserService::new().await?;
 
     //GRPC reflection
