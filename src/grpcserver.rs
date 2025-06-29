@@ -453,7 +453,7 @@ impl User for UserService {
                         warn!("Failed for: {:?}", resp_result);
                     }
                 }
-                if db_mod {
+                if !db_mod {
                     //LIST POP First
                     let df = CsvReader::from_path(&path).unwrap().finish().unwrap();
                     let length = df["Process Instance.Task Details.Key"].len() as u32;
@@ -470,7 +470,8 @@ impl User for UserService {
                     })?;
                     CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
                 } else {
-                    let mut db = self.db.as_ref().unwrap().lock().await;
+                    let mut db: tokio::sync::MutexGuard<'_, DBService> =
+                        self.db.as_ref().unwrap().lock().await;
                     let row = db.db_get_first_row("task").await.map_err(|e| {
                         tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
                     })?;
