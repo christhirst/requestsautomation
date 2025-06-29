@@ -64,7 +64,6 @@ impl Settings {
             }
         }
         let paths = paths.join("config");
-        println!("Current directory: {}", paths.display());
         let run_mode = env::var("RUN_MODE").unwrap_or_else(|_| "development".into());
 
         let s = Config::builder()

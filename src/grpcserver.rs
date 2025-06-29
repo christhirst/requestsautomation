@@ -408,7 +408,7 @@ impl User for UserService {
                 let status: u16 = 0;
                 let mut retry: i32 = 0;
                 //RETRY Test Config
-                while retry < 3 && status != 200 {
+                while retry < 3 {
                     retry += 1;
 
                     //TODO extract to function
@@ -432,6 +432,7 @@ impl User for UserService {
                                 id: id.to_string(),
                                 status: response.status().to_string(),
                             };
+                            thread::sleep(Duration::from_secs(1));
                             //tasksdone.push(newresp);
                             tasks_retried.insert(id.to_string(), newresp);
                             Ok(())

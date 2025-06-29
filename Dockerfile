@@ -34,6 +34,6 @@ COPY --from=planner /app/config /app/config
 #COPY --from=planner /app/Config.toml /
 
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/requestsautomation /app
-
+WORKDIR /app
 EXPOSE 8180 8280 50051
-CMD ["/app/requestsautomation"]
+CMD ["./requestsautomation"]
