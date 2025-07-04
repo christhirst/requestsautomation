@@ -17,6 +17,6 @@ filter1 = "AAccount"
 filter2 = "Update"
 listof = "AAccount"
 attr = "Process Instance.Task Information.Target User"
-filelist = "path.csv"
+filelist = "path3.csv"
 timeout = 30
 sleep = 3

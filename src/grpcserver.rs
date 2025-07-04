@@ -137,7 +137,60 @@ impl User for UserService {
         &self,
         _request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::ListResponse>, tonic::Status> {
-        let mut df = CsvReader::from_path("path.csv").unwrap().finish().unwrap();
+        let guard = self.state.read().await;
+        let settings = guard.as_ref().unwrap();
+        let path = settings.grpc.filelist.clone();
+
+        let df_header = vec![
+            "Process Instance.Task Information.Creation Date",
+            "Objects.Name",
+            "Process Instance.Task Details.Key",
+            "Process Definition.Tasks.Task Name",
+            "Process Instance.Task Information.Target User",
+        ];
+
+        // Create an empty DataFrame with just the headers
+        let empty_columns: Vec<Series> = df_header
+            .iter()
+            .map(|name| Series::new_empty(name, &DataType::String))
+            .collect();
+        let fileexists = !Path::new(&path).exists();
+        let mut df = DataFrame::new(empty_columns).unwrap();
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+        CsvWriter::new(&mut file)
+            .include_header(fileexists)
+            .finish(&mut df)
+            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+
+        //create headers
+        //create file
+        /* let fileexists = !Path::new("path3.csv").exists();
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("path3.csv")
+            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
+
+        //SELECT columns
+        /* let mut new_df = DataFrame::default()
+        .lazy()
+        .select(df_header.iter().map(|s| col(s)).collect::<Vec<_>>())
+        .collect()
+        .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
+        //CSV write header
+        /* CsvWriter::new(&mut file)
+            .include_header(fileexists)
+            .finish(&mut new_df)
+            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+
+        let guard = self.state.read().await;
+        let settings = guard.as_ref().unwrap();
+        let path = settings.grpc.filelist.clone();
+        let mut df = CsvReader::from_path(path).unwrap().finish().unwrap(); */
 
         //TODO Print list to CSV + Database
 
@@ -178,6 +231,7 @@ impl User for UserService {
         })?;
         let conf = &conf.grpc;
         let timeout = conf.timeout;
+        let path = &conf.filelist.clone();
         //HTTP Client create
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(timeout))
@@ -243,11 +297,11 @@ impl User for UserService {
 
             if self.db.is_none() {
                 //CSV write
-                let fileexists = !Path::new("path.csv").exists();
+                let fileexists = !Path::new(path).exists();
                 let mut file = OpenOptions::new()
                     .create(true)
                     .append(true)
-                    .open("path.csv")
+                    .open(path)
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
                 //CSV write header
@@ -304,32 +358,10 @@ impl User for UserService {
                             panic!("Failed to create entry: {:?}", e);
                         });
 
-                    /*  &self
-                    .db
-                    .as_ref()
-                    .unwrap()
-                    .db_create_entry("task", task_row.clone())
-                    .await
-                    .unwrap_or_else(|e| {
-                        warn!("Failed to create entry: {:?}", e);
-                        panic!("Failed to create entry: {:?}", e);
-                    }); */
-
                     println!("{:?}", task_row);
 
                     println!("{:?}", row);
                 }
-
-                /*  dfa.iter().for_each(|s| {
-                                   info!("Target User: {:?}", s);
-                               });
-                */
-                /* dfa.iter().for_each(|s| {
-                    info!(
-                        "Target User: {:?}",
-                        s.iter().map(|v| v.to_string()).collect::<Vec<String>>()
-                    );
-                }); */
             }
             //new data from rest api
         }
