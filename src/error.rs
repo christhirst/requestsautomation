@@ -21,6 +21,11 @@ pub enum CliError {
     GlobalDefaultError(SetGlobalDefaultError),
     #[error("unknown data store error")]
     DBError(#[from] surrealdb::Error),
+
+    #[error("Tonic Startup error")]
+    TonicReflection(#[from] tonic_reflection::server::Error),
+    #[error("Tonic Startup error")]
+    TonicTransport(#[from] tonic::transport::Error),
 }
 
 impl From<CliError> for tonic::Status {

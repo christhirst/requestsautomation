@@ -209,6 +209,7 @@ impl User for UserService {
         debug!("CONFIGDATA successful");
         //HTTP Client create
         let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
             .timeout(std::time::Duration::from_secs(timeout))
             .build()
             .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?;
@@ -408,6 +409,7 @@ impl User for UserService {
 
             //CLIENT SETUP
             let client = reqwest::Client::builder()
+                .danger_accept_invalid_certs(true)
                 .connect_timeout(std::time::Duration::from_secs(conf.timeout))
                 .timeout(std::time::Duration::from_secs(conf.timeout))
                 .build()

@@ -46,29 +46,21 @@ async fn main() -> Result<(), CliError> {
 
     info!(
         "Version: {:?}, LOGLEVEL: {:?}, URL: {:?}",
-        "v0.0.26", env_loglevl, geturl
+        "v0.0.27", env_loglevl, geturl
     );
 
     let settg = Settings::new().unwrap().grpc_server;
     let addr = format!("{}:{}", settg.host, settg.port).parse();
-    //GRPC server
 
-    //let state = Arc::new(tokio::sync::RwLock::new(None));
-
-    /* let calc = grpcserver::UserService {
-        state: state,
-        config: None,
-        db: None,
-    }; */
-
+    info!("gRPC Setting up");
     let calc = grpcserver::UserService::new().await?;
 
-    //GRPC reflection
+    info!("gRPC gRPC reflection");
     let service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(grpcserver::proto::FILE_DESCRIPTOR_SET)
-        .build_v1()
-        .unwrap();
+        .build_v1()?;
 
+    info!("gRPC serving at: {:?}", addr);
     Server::builder()
         .accept_http1(true)
         //.layer(tower_http::cors::CorsLayer::permissive())
@@ -77,8 +69,7 @@ async fn main() -> Result<(), CliError> {
         //.add_service(tonic_web::enable(CalculatorServer::new(calc)))
         //.add_service(AdminServer::with_interceptor(admin, check_auth))
         .serve(addr.unwrap())
-        .await
-        .unwrap();
+        .await?;
 
     Ok(())
 }
