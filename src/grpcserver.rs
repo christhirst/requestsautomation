@@ -166,32 +166,6 @@ impl User for UserService {
             .finish(&mut df)
             .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
-        //create headers
-        //create file
-        /* let fileexists = !Path::new("path3.csv").exists();
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("path3.csv")
-            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
-
-        //SELECT columns
-        /* let mut new_df = DataFrame::default()
-        .lazy()
-        .select(df_header.iter().map(|s| col(s)).collect::<Vec<_>>())
-        .collect()
-        .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
-        //CSV write header
-        /* CsvWriter::new(&mut file)
-            .include_header(fileexists)
-            .finish(&mut new_df)
-            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-
-        let guard = self.state.read().await;
-        let settings = guard.as_ref().unwrap();
-        let path = settings.grpc.filelist.clone();
-        let mut df = CsvReader::from_path(path).unwrap().finish().unwrap(); */
-
         //TODO Print list to CSV + Database
 
         // Convert chrono::DateTime<Utc> to prost_types::Timestamp
@@ -263,7 +237,7 @@ impl User for UserService {
                     format!("Getting data failed: {:?}", e),
                 )
             })?;
-            println!("data: {:?}", data);
+
             //HEADER data extract
             let mut hm: HashMap<String, Series> =
                 datapolars::getheaders(&client, &geturl, &conf.username, &conf.password)
@@ -277,7 +251,7 @@ impl User for UserService {
             println!("hm: {:?}", hm);
             //FILL series
             let data = datapolars::fillseries(data, &mut hm).clone();
-            println!("data: {:?}", data);
+
             //DATAFRAME create
             let mut df_append = DataFrame::default();
             for (_i, v) in data {
@@ -336,21 +310,21 @@ impl User for UserService {
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
                 //DATAFRAME collect
-                let mut dfa = out
-                    .clone()
-                    .lazy()
-                    .select([col("Process Instance.Task Information.Target User")])
-                    .collect()
-                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                /* let mut dfa = out
+                .clone()
+                .lazy()
+                .select([col("Process Instance.Task Information.Target User")])
+                .collect()
+                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
 
-                //CSV write
+                /* //CSV write
                 let mut file = std::fs::File::create("path3.csv")
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
                 //CSV write
                 CsvWriter::new(&mut file)
                     .finish(&mut dfa)
-                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
 
                 //CSV read
                 let contents = fs::read_to_string("path3.csv")

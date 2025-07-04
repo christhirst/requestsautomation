@@ -27,9 +27,9 @@ pub async fn get_data(
     //let mut next_link: String;
     while more && count < fetched {
         let dat = Root::default();
-        println!("Entires in url: {:?}", url);
+        //println!("Entires in url: {:?}", url);
         let data = fetchdata(client, &mut url, username, password, dat).await?;
-        println!("Entires in Backend: {:?}", data);
+        //println!("Entires in Backend: {:?}", data);
         match data {
             Roots::Root(d) => {
                 //data = Roots::RootAccount(d);

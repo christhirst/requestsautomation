@@ -46,7 +46,7 @@ async fn main() -> Result<(), CliError> {
 
     info!(
         "Version: {:?}, LOGLEVEL: {:?}, URL: {:?}",
-        "v0.0.25", env_loglevl, geturl
+        "v0.0.26", env_loglevl, geturl
     );
 
     let settg = Settings::new().unwrap().grpc_server;
