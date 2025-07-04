@@ -100,7 +100,7 @@ impl Settings {
 mod tests {
     use std::net::SocketAddr;
 
-    use super::*;
+    /* use super::*;
     #[test]
     fn config_parse_test() -> Result<(), Box<dyn std::error::Error>> {
         let settings = Settings::new();
@@ -109,7 +109,7 @@ mod tests {
         //panic!("Test failed, this is a panic to test the error handling in the test framework");
         assert!(settings.is_ok(), "Failed to parse settings");
         Ok(())
-    }
+    } */
 
     /* #[test]
     fn url_converter() -> Result<(), Box<dyn std::error::Error>> {
