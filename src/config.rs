@@ -79,7 +79,7 @@ impl Settings {
             )
             // Add in a local configuration file
             // This file shouldn't be checked in to git
-            .add_source(File::with_name(&format!("{}/local", paths.display())).required(false))
+            .add_source(File::with_name(&format!("{}/locals", paths.display())).required(false))
             // Add in settings from the environment (with a prefix of APP)
             // Eg.. `APP_DEBUG=1 ./target/app` would set the `debug` key
             .add_source(Environment::with_prefix("app"))
@@ -100,7 +100,7 @@ impl Settings {
 mod tests {
     use std::net::SocketAddr;
 
-    /* use super::*;
+    use super::*;
     #[test]
     fn config_parse_test() -> Result<(), Box<dyn std::error::Error>> {
         let settings = Settings::new();
@@ -109,7 +109,7 @@ mod tests {
         //panic!("Test failed, this is a panic to test the error handling in the test framework");
         assert!(settings.is_ok(), "Failed to parse settings");
         Ok(())
-    } */
+    }
 
     /* #[test]
     fn url_converter() -> Result<(), Box<dyn std::error::Error>> {
