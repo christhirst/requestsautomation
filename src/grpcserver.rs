@@ -232,6 +232,7 @@ impl User for UserService {
         let conf = &conf.grpc;
         let timeout = conf.timeout;
         let path = &conf.filelist.clone();
+        debug!("CONFIGDATA successful");
         //HTTP Client create
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(timeout))
@@ -256,24 +257,37 @@ impl User for UserService {
                 conf.entries,
             )
             .await
-            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-
+            .map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::NotFound,
+                    format!("Getting data failed: {:?}", e),
+                )
+            })?;
+            println!("data: {:?}", data);
             //HEADER data extract
             let mut hm: HashMap<String, Series> =
                 datapolars::getheaders(&client, &geturl, &conf.username, &conf.password)
                     .await
                     .map_err(|e| {
-                        tonic::Status::new(tonic::Code::ResourceExhausted, format!("{:?}", e))
+                        tonic::Status::new(
+                            tonic::Code::ResourceExhausted,
+                            format!("Header extract failed: {:?}", e),
+                        )
                     })?;
+            println!("hm: {:?}", hm);
             //FILL series
             let data = datapolars::fillseries(data, &mut hm).clone();
-
+            println!("data: {:?}", data);
             //DATAFRAME create
             let mut df_append = DataFrame::default();
             for (_i, v) in data {
                 let df = v.into_frame();
-                df_append = concat_df_horizontal(&[df_append, df])
-                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                df_append = concat_df_horizontal(&[df_append, df]).map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::NotFound,
+                        format!("Creating dataframe failed: {:?}", e),
+                    )
+                })?;
             }
 
             //HEADER for select
@@ -284,18 +298,29 @@ impl User for UserService {
                 "Process Definition.Tasks.Task Name",
                 "Process Instance.Task Information.Target User",
             ];
-
-            //SELECT columns
-            let df = pl_vstr_to_selects(df_append, df_header)
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-            let mut out = datapolars::get_data(df, &conf.filter1, &conf.filter2)
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+            println!("df_header: {:?}", df_header);
+            println!("df_append: {:?}", df_append);
+            //BUILD dataframe
+            let df = pl_vstr_to_selects(df_append, df_header).map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Aborted,
+                    format!("Building dataframe failed: {:?}", e),
+                )
+            })?;
+            let mut out = datapolars::get_data(df, &conf.filter1, &conf.filter2).map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::InvalidArgument,
+                    format!("Filtering failed: {:?}", e),
+                )
+            })?;
+            debug!("Dataframe built successful");
 
             //List for count
             //let tasks = out["Process Instance.Task Details.Key"].as_list();
             //let _ids = out["Process Instance.Task Information.Target User"].as_list();
 
             if self.db.is_none() {
+                info!("DB is None, writing to CSV");
                 //CSV write
                 let fileexists = !Path::new(path).exists();
                 let mut file = OpenOptions::new()
@@ -319,7 +344,7 @@ impl User for UserService {
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
                 //CSV write
-                let mut file = std::fs::File::create("ids.csv")
+                let mut file = std::fs::File::create("path3.csv")
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
                 //CSV write
@@ -328,13 +353,14 @@ impl User for UserService {
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
                 //CSV read
-                let contents =
-                    fs::read_to_string("ids.csv").expect("Should have been able to read the file");
+                let contents = fs::read_to_string("path3.csv")
+                    .expect("Should have been able to read the file");
 
                 //CSV read
                 let splitted: Vec<&str> = contents.split('\n').collect();
                 info!("Ids: {:?}", splitted);
             } else {
+                info!("DB access");
                 for idx in 0..out.height() {
                     let row = out.get_row(idx).unwrap().0;
 

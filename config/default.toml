@@ -6,7 +6,7 @@ port = "50051"
 host = "127.0.0.1"
 
 
-[database]
+[database1]
 user = "admin"
 password = ""
 url = "ux-ti-069ps2e29luilf8m9qq0o620g0.aws-euw1.surreal.cloud"

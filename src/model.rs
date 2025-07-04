@@ -40,7 +40,7 @@ impl fmt::Display for Root {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Roots {
     Root(Root),
-    //RootAccount(RootAccount),
+    //RootAccount(Root),
 }
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
