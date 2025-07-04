@@ -111,7 +111,7 @@ mod tests {
         Ok(())
     }
 
-    /* #[test]
+    #[test]
     fn url_converter() -> Result<(), Box<dyn std::error::Error>> {
         let settg = Settings::new().unwrap().grpc_server;
         print!("Address: {:?}", settg);
@@ -120,5 +120,5 @@ mod tests {
 
         assert!(addr.is_ok(), "Failed to parse address");
         Ok(())
-    }  */
+    }
 }
