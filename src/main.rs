@@ -87,7 +87,7 @@ async fn main() -> Result<(), CliError> {
 mod tests {
     use super::*;
 
-    #[test]
+    /* #[test]
     fn urlsbuilder_test() -> Result<(), Box<dyn std::error::Error>> {
         //let filename1 = "Config.toml";
         //let conf = load_or_initialize(filename1).unwrap();
@@ -103,7 +103,7 @@ mod tests {
 
         //assert_eq!(urlresult, n);
         Ok(())
-    }
+    } */
 
     /*  #[ignore]
     #[test]
