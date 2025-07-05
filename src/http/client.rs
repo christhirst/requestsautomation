@@ -1,7 +1,3 @@
-use core::time;
-
-use futures::future::ok;
-
 pub fn rest_client(timeout: u64) -> Result<reqwest::Client, tonic::Status> {
     let client = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)

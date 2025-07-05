@@ -154,7 +154,7 @@ impl User for UserService {
             .send()
             .await
             .expect("Failed to send request");
-        let oo = response.status().is_success().to_string();
+        let _oo = response.status().is_success().to_string();
         // assert!(response.status().is_success());
         let body = response.text().await.expect("Failed to read body");
         println!("Response body: {}", body);
@@ -228,9 +228,18 @@ impl User for UserService {
         _request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
         let settings = self.get_config().await?;
-        let file = settings.grpc.filelist;
-        fs::remove_file(file)?;
-        info!("File deleted");
+
+        if settings.db {
+            return Err(tonic::Status::new(
+                tonic::Code::FailedPrecondition,
+                "Database is not configured",
+            ));
+        } else {
+            let file = settings.grpc.filelist;
+            fs::remove_file(file)?;
+            info!("File deleted");
+        }
+
         Ok(tonic::Response::new(proto::UserResponse { result: 2 }))
     }
     //TODO ConTest
@@ -239,7 +248,7 @@ impl User for UserService {
     //TODO write to CSV
     async fn prov_tasks_list(
         &self,
-        request: tonic::Request<proto::UserRequest>,
+        _request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::ListResponse>, tonic::Status> {
         let settings = self.get_config().await?;
         let conf = settings.grpc;

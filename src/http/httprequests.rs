@@ -20,7 +20,7 @@ pub async fn get_data(
 ) -> Result<Vec<Task>, CliError> {
     let mut alltasks: Vec<Task> = vec![];
 
-    let more = true;
+    let mut more = true;
     let mut count = 0;
     let mut url: String = url.to_string();
 
@@ -33,7 +33,7 @@ pub async fn get_data(
         match data {
             Roots::Root(d) => {
                 //data = Roots::RootAccount(d);
-                let more = fetchdatass(d, &mut alltasks, &mut url);
+                more = fetchdatass(d, &mut alltasks, &mut url);
                 //let gotcount = count;
             } //Roots::RootAccount(d) => data = Roots::RootAccount(d),
         }
