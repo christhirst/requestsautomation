@@ -4,7 +4,7 @@ use reqwest::{
     header::{ACCEPT, CONTENT_TYPE},
     Client, Response,
 };
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
     error::CliError,
@@ -27,9 +27,9 @@ pub async fn get_data(
     //let mut next_link: String;
     while more && count < fetched {
         let dat = Root::default();
-        //println!("Entires in url: {:?}", url);
+        debug!("Fetching data from: {}", url);
         let data = fetchdata(client, &mut url, username, password, dat).await?;
-        //println!("Entires in Backend: {:?}", data);
+        debug!("Entires in Backend: {:?}", data);
         match data {
             Roots::Root(d) => {
                 //data = Roots::RootAccount(d);
@@ -47,7 +47,7 @@ pub async fn get_data(
 fn fetchdatass(data: Root, alltasks: &mut Vec<Task>, url: &mut String) -> (bool) {
     alltasks.append(&mut data.tasks.unwrap());
     let more = data.has_more;
-    let mut next_link: String;
+    //let mut next_link: String;
     for l in data.links {
         if l.rel == "next" {
             *url = l.href.to_owned();
@@ -66,6 +66,7 @@ async fn fetchdata<T>(
     password: &str,
     mut t: T,
 ) -> Result<Roots, CliError> {
+    debug!("Fetching data from: {}", url);
     let response = client
         .get(url)
         .header(CONTENT_TYPE, "application/json")
@@ -73,7 +74,8 @@ async fn fetchdata<T>(
         .basic_auth(username, Some(password))
         .send()
         .await?;
-    let t = response.json().await?;
+    let t: Root = response.json().await?;
+    debug!("Total result: {}", t.total_result);
     Ok(Roots::Root(t))
 }
 

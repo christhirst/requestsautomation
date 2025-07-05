@@ -75,6 +75,18 @@ pub struct UserService {
 }
 
 impl UserService {
+    async fn get_config(&self) -> Result<Settings, CliError> {
+        debug!("Config get");
+        let guard = self.state.read().await;
+        let settings = guard.as_ref().ok_or(CliError::EntityNotFound {
+            entity: "Task",
+            id: 42,
+        })?;
+        Ok(settings.clone())
+    }
+}
+
+impl UserService {
     pub async fn new() -> Result<Self, surrealdb::Error> {
         info!("Loading configuration");
         let conf = Settings::new().unwrap();
@@ -132,39 +144,71 @@ impl User for UserService {
             result: "Reload successful".to_string(),
         }))
     }
+    async fn check_con(
+        &self,
+        _request: tonic::Request<proto::UserRequest>,
+    ) -> Result<tonic::Response<proto::ConfigResponse>, tonic::Status> {
+        let settings = self.get_config().await?;
+        let url = settings.grpc.baseurl;
+        let client = reqwest::Client::new();
+        let response = client
+            .get(url)
+            .send()
+            .await
+            .expect("Failed to send request");
+        let oo = response.status().is_success().to_string();
+        // assert!(response.status().is_success());
+        let body = response.text().await.expect("Failed to read body");
+        println!("Response body: {}", body);
+
+        Ok(tonic::Response::new(proto::ConfigResponse { result: body }))
+    }
+    //TODO print CSV
     //TODO user to csv
+
     async fn gen_list(
         &self,
         _request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::ListResponse>, tonic::Status> {
-        let guard = self.state.read().await;
-        let settings = guard.as_ref().unwrap();
+        //File exists?
+        //return amount
+        let settings = self.get_config().await?;
         let path = settings.grpc.filelist.clone();
 
-        let df_header = vec![
-            "Process Instance.Task Information.Creation Date",
-            "Objects.Name",
-            "Process Instance.Task Details.Key",
-            "Process Definition.Tasks.Task Name",
-            "Process Instance.Task Information.Target User",
-        ];
-
         // Create an empty DataFrame with just the headers
-        let empty_columns: Vec<Series> = df_header
-            .iter()
-            .map(|name| Series::new_empty(name, &DataType::String))
-            .collect();
+
         let fileexists = !Path::new(&path).exists();
-        let mut df = DataFrame::new(empty_columns).unwrap();
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-        CsvWriter::new(&mut file)
-            .include_header(fileexists)
-            .finish(&mut df)
-            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+        if !fileexists {
+            let df_header = vec![
+                "Process Instance.Task Information.Creation Date",
+                "Objects.Name",
+                "Process Instance.Task Details.Key",
+                "Process Definition.Tasks.Task Name",
+                "Process Instance.Task Information.Target User",
+            ];
+            let empty_columns: Vec<Series> = df_header
+                .iter()
+                .map(|name| Series::new_empty(name, &DataType::String))
+                .collect();
+
+            let mut df = DataFrame::new(empty_columns).unwrap();
+            let mut file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+            CsvWriter::new(&mut file)
+                .include_header(fileexists)
+                .finish(&mut df)
+                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+            return Ok(tonic::Response::new(proto::ListResponse {
+                result: 1,
+                time: None,
+                message: String::from("File created successfully"),
+            }));
+        } else {
+            info!("File already exists, appending to: {}", path);
+        }
 
         //TODO Print list to CSV + Database
 
@@ -176,8 +220,9 @@ impl User for UserService {
         };
 
         Ok(tonic::Response::new(proto::ListResponse {
-            result: vec!["1".to_string()],
+            result: 2,
             time: Some(timestamp),
+            message: String::from("List generated successfully"),
         }))
     }
     async fn db_delete(
@@ -189,24 +234,20 @@ impl User for UserService {
         info!("File deleted");
         Ok(tonic::Response::new(proto::UserResponse { result: 2 }))
     }
-
+    //TODO ConTest
+    //TODO Print CSV
+    //TODO
     //TODO write to CSV
     async fn prov_tasks_list(
         &self,
         request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::ListResponse>, tonic::Status> {
-        //CONFIG data
-        let conf = self.state.read().await;
-        let conf = conf.as_ref().ok_or_else(|| {
-            tonic::Status::new(
-                tonic::Code::NotFound,
-                "Configuration not found, please reload",
-            )
-        })?;
-        let conf = &conf.grpc;
+        let settings = self.get_config().await?;
+        let conf = settings.grpc;
         let timeout = conf.timeout;
         let path = &conf.filelist.clone();
         debug!("CONFIGDATA successful");
+
         //HTTP Client create
         let client = reqwest::Client::builder()
             .danger_accept_invalid_certs(true)
@@ -273,6 +314,7 @@ impl User for UserService {
                 "Process Definition.Tasks.Task Name",
                 "Process Instance.Task Information.Target User",
             ];
+
             println!("df_header: {:?}", df_header);
             println!("df_append: {:?}", df_append);
             //BUILD dataframe
@@ -288,7 +330,6 @@ impl User for UserService {
                     format!("Filtering failed: {:?}", e),
                 )
             })?;
-            debug!("Dataframe built successful");
 
             //List for count
             //let tasks = out["Process Instance.Task Details.Key"].as_list();
@@ -372,9 +413,16 @@ impl User for UserService {
             nanos: now.timestamp_subsec_nanos() as i32,
         };
 
+        let taskstosubmit = CsvReader::from_path(&path)
+            .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?
+            .finish()
+            .unwrap()["Process Instance.Task Details.Key"]
+            .as_list();
+
         Ok(tonic::Response::new(proto::ListResponse {
-            result: vec!["test".to_string()],
+            result: taskstosubmit.len() as i32,
             time: Some(timestamp),
+            message: String::from("List generated successfully"),
         }))
     }
 

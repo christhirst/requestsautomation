@@ -6,6 +6,7 @@ package requestsautomation;
 //TODO delete db
 service User {
   rpc ConfReload(UserRequest) returns (ConfigResponse);
+  rpc CheckCon(UserRequest) returns (ConfigResponse);
   rpc GenList(UserRequest) returns (ListResponse);
   rpc DbDelete(UserRequest) returns (UserResponse);
   rpc ProvTasksList(UserRequest) returns (ListResponse);
@@ -32,7 +33,8 @@ message ProvAcionRequest {  ActionType action  = 1;}
 
 message ListResponse {  
   google.protobuf.Timestamp time = 1;
-  repeated string result = 2; 
+  int32  result = 2;
+  string message = 3;
 }
 
 message UserResponse { int64 result = 1; }

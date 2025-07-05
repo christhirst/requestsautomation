@@ -23,7 +23,7 @@ pub struct AppConfig {
     pub sleep: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct GrpcServer {
     pub port: String,
@@ -42,7 +42,7 @@ pub struct Database {
     pub jwt: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub(crate) struct Settings {
     pub grpc: AppConfig,
