@@ -1,7 +1,6 @@
-use crate::model::Task;
-
 use crate::error::CliError;
-use crate::httprequests;
+use crate::{http::httprequests, model::Task};
+
 use polars::{
     datatypes::{DataType, TimeUnit},
     error::PolarsError,

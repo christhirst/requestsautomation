@@ -1,6 +1,6 @@
 
 [grpc]
-grpcport = "http://[::1]:50051"
+grpcport = "http://0.0.0.0:50051"
 username = "testuser"
 password = "testPW"
 baseurl = "http://127.0.0.1:8000"

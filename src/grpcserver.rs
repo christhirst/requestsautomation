@@ -2,8 +2,9 @@ use crate::config::Database;
 //use crate::config3::AppConfig;
 use crate::db::types::Task;
 use crate::error::CliError;
-use crate::httprequests;
 
+use crate::http::client::rest_client;
+use crate::http::httprequests;
 use crate::Settings;
 use crate::{datapolars, grpcserver};
 
@@ -58,7 +59,6 @@ impl TryFrom<i32> for Action {
     }
 }
 type State = std::sync::Arc<tokio::sync::RwLock<Option<Settings>>>;
-//type DbService = std::sync::Arc<tokio::sync::RwLock<Option<DBService>>>;
 
 #[derive(Debug)]
 pub struct DBService {
@@ -132,8 +132,6 @@ impl User for UserService {
         //CONFIG data from file
         //TODO DB reload
         let file = "Config.toml";
-        /* let conf = config3::confload(file)
-        .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
 
         let conf = Settings::new().unwrap();
         let mut confs = self.state.write().await;
@@ -229,7 +227,8 @@ impl User for UserService {
         &self,
         _request: tonic::Request<proto::UserRequest>,
     ) -> Result<tonic::Response<proto::UserResponse>, tonic::Status> {
-        let file = "path.csv";
+        let settings = self.get_config().await?;
+        let file = settings.grpc.filelist;
         fs::remove_file(file)?;
         info!("File deleted");
         Ok(tonic::Response::new(proto::UserResponse { result: 2 }))
@@ -249,12 +248,7 @@ impl User for UserService {
         debug!("CONFIGDATA successful");
 
         //HTTP Client create
-        let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .timeout(std::time::Duration::from_secs(timeout))
-            .build()
-            .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?;
-
+        let client = rest_client(timeout)?;
         //URL create
         let geturl = format!("{}{}{}", &conf.baseurl, conf.urlput, conf.urlget);
         let urllist = httprequests::urlsbuilder(&conf.baseurl, &conf.urlfilter);
@@ -290,7 +284,7 @@ impl User for UserService {
                             format!("Header extract failed: {:?}", e),
                         )
                     })?;
-            println!("hm: {:?}", hm);
+            //println!("hm: {:?}", hm);
             //FILL series
             let data = datapolars::fillseries(data, &mut hm).clone();
 
@@ -315,8 +309,8 @@ impl User for UserService {
                 "Process Instance.Task Information.Target User",
             ];
 
-            println!("df_header: {:?}", df_header);
-            println!("df_append: {:?}", df_append);
+            /* println!("df_header: {:?}", df_header);
+            println!("df_append: {:?}", df_append); */
             //BUILD dataframe
             let df = pl_vstr_to_selects(df_append, df_header).map_err(|e| {
                 tonic::Status::new(
@@ -330,10 +324,6 @@ impl User for UserService {
                     format!("Filtering failed: {:?}", e),
                 )
             })?;
-
-            //List for count
-            //let tasks = out["Process Instance.Task Details.Key"].as_list();
-            //let _ids = out["Process Instance.Task Information.Target User"].as_list();
 
             if self.db.is_none() {
                 info!("DB is None, writing to CSV");
@@ -351,30 +341,13 @@ impl User for UserService {
                     .finish(&mut out)
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
-                //DATAFRAME collect
-                /* let mut dfa = out
-                .clone()
-                .lazy()
-                .select([col("Process Instance.Task Information.Target User")])
-                .collect()
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
-
-                /* //CSV write
-                let mut file = std::fs::File::create("path3.csv")
-                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
-
-                //CSV write
-                CsvWriter::new(&mut file)
-                    .finish(&mut dfa)
-                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?; */
-
                 //CSV read
-                let contents = fs::read_to_string("path3.csv")
-                    .expect("Should have been able to read the file");
+                let contents =
+                    fs::read_to_string(path).expect("Should have been able to read the file");
 
                 //CSV read
                 let splitted: Vec<&str> = contents.split('\n').collect();
-                info!("Ids: {:?}", splitted);
+                debug!("Ids: {:?}", splitted);
             } else {
                 info!("DB access");
                 for idx in 0..out.height() {
@@ -400,9 +373,9 @@ impl User for UserService {
                             panic!("Failed to create entry: {:?}", e);
                         });
 
-                    println!("{:?}", task_row);
+                    //println!("{:?}", task_row);
 
-                    println!("{:?}", row);
+                    //println!("{:?}", row);
                 }
             }
             //new data from rest api
@@ -418,6 +391,7 @@ impl User for UserService {
             .finish()
             .unwrap()["Process Instance.Task Details.Key"]
             .as_list();
+        println!("{:?}", taskstosubmit);
 
         Ok(tonic::Response::new(proto::ListResponse {
             result: taskstosubmit.len() as i32,
@@ -456,12 +430,14 @@ impl User for UserService {
                 .as_list();
 
             //CLIENT SETUP
-            let client = reqwest::Client::builder()
-                .danger_accept_invalid_certs(true)
-                .connect_timeout(std::time::Duration::from_secs(conf.timeout))
-                .timeout(std::time::Duration::from_secs(conf.timeout))
-                .build()
+            let client = rest_client(conf.timeout)
                 .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?;
+            /* let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .connect_timeout(std::time::Duration::from_secs(conf.timeout))
+            .timeout(std::time::Duration::from_secs(conf.timeout))
+            .build()
+            .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?; */
 
             //LOOP setup
             //LIST of retried tasks
@@ -484,7 +460,7 @@ impl User for UserService {
 
                 //URL generate PUT
                 let puturl = format!("{}{}{}{}", conf.baseurl, conf.urlput, "/", id);
-                info!("Id: {id} PutUrl: {puturl}");
+                debug!("Id: {id} PutUrl: {puturl}");
 
                 //LOOP setup
                 let status: u16 = 0;

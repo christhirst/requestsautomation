@@ -3,7 +3,7 @@ loglevel = "INFO"
 
 [grpc_server]
 port = "50051"
-host = "127.0.0.1"
+host = "0.0.0.0"
 
 
 [database]

@@ -3,7 +3,7 @@ mod datapolars;
 mod db;
 mod error;
 mod grpcserver;
-mod httprequests;
+mod http;
 mod model;
 mod types;
 mod wrangle;
