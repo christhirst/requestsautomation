@@ -68,9 +68,8 @@ jobs:
 
       - name: Build and push
         #uses: docker/build-push-action@v6
-        uses: docker/bake-action@v2.3.0
+        uses: docker/bake-action@v6
         with:
-          files: docker-compose.yml
           push: true
           set: |
             *.cache-from=type=gha
