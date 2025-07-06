@@ -1,4 +1,0 @@
-username = "testuser"
-password = "testadmin"
-url = "http://0.0.0.0:389"
-checkmode = true

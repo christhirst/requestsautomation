@@ -73,19 +73,19 @@ impl DBService {
     }
 
     #[allow(dead_code)]
-    pub async fn db_delete_all(&self, task: &str) -> surrealdb::Result<()> {
+    pub async fn db_delete_all(&self, task: &str) -> Result<Vec<Task>, CliError> {
         let deleted_rest: Vec<Task> = self.db.as_ref().unwrap().delete(task).await?;
-        todo!()
+        Ok(deleted_rest)
     }
     pub async fn db_delete_by_id(&self, record: RecordId) -> surrealdb::Result<()> {
         let db = self.db.as_ref().unwrap();
 
         db.query("DELETE $id").bind(("id", record)).await?;
 
-        todo!()
+        Ok(())
     }
     #[allow(dead_code)]
-    pub async fn db_list(&self) -> surrealdb::Result<Vec<Task>> {
+    pub async fn db_list(&self) -> Result<(), CliError> {
         let result: Vec<Task> = self
             .db
             .clone()
@@ -95,7 +95,7 @@ impl DBService {
             .unwrap()
             .take(0)
             .unwrap();
-        Ok(result)
+        Ok(())
     }
 
     pub async fn db_get_first_row(&self, task: &str) -> Result<Task, CliError> {

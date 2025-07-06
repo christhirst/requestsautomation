@@ -4,12 +4,3 @@ loglevel = "INFO"
 [grpc_server]
 port = "50051"
 host = "0.0.0.0"
-
-
-[database]
-user = "admin"
-password = ""
-url = "ux-ti-069ps2e29luilf8m9qq0o620g0.aws-euw1.surreal.cloud"
-token = ""
-namespace = "test"
-database = "test"

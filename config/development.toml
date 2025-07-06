@@ -3,7 +3,7 @@
 grpcport = "http://0.0.0.0:50051"
 username = "testuser"
 password = "testPW"
-baseurl = "http://127.0.0.1:8000"
+baseurl = "http://172.27.214.136:8000"
 urlget = "/te?q=123+eq+123 AND "
 urlput = "/users"
 urlaccounts = "/accounts"
