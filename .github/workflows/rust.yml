@@ -67,13 +67,14 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        #uses: docker/build-push-action@v6
+        uses: docker/bake-action@v2.3.0
         with:
-          context: .
-          target: runtime
+          files: docker-compose.yml
           push: true
-          tags: raynkami/rust.auto:v0.0.29
-          labels: rust.auto
+          set: |
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
 
   del_runs:
     runs-on: ubuntu-latest

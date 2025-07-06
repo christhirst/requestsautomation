@@ -418,20 +418,12 @@ impl User for UserService {
         request: tonic::Request<proto::ProvAcionRequest>,
     ) -> Result<tonic::Response<proto::Dictionary>, tonic::Status> {
         //CONFIG data from state
-        let conf = self.state.read().await;
+        let conf = self.get_config().await?;
 
         //MATCH action with enum Protobuf to ENUM
         let action = action_mapper(request)?;
-        let db_mod = conf.as_ref().map_or(false, |c| c.db);
-        let conf = &conf
-            .as_ref()
-            .ok_or_else(|| {
-                tonic::Status::new(
-                    tonic::Code::NotFound,
-                    "Configuration not found, please reload",
-                )
-            })?
-            .grpc;
+        let db_mod = conf.db;
+        let conf = &conf.grpc;
         let path = conf.filelist.clone();
 
         if self.db.is_none() {
@@ -445,12 +437,6 @@ impl User for UserService {
             //CLIENT SETUP
             let client = rest_client(conf.timeout)
                 .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?;
-            /* let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .connect_timeout(std::time::Duration::from_secs(conf.timeout))
-            .timeout(std::time::Duration::from_secs(conf.timeout))
-            .build()
-            .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?; */
 
             //LOOP setup
             //LIST of retried tasks
@@ -541,9 +527,11 @@ impl User for UserService {
                     })?;
                     CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
                 } else {
-                    let mut db: tokio::sync::MutexGuard<'_, DBService> =
-                        self.db.as_ref().unwrap().lock().await;
+                    let mut db = self.db.as_ref().unwrap().lock().await;
                     let row = db.db_get_first_row("task").await.map_err(|e| {
+                        tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
+                    })?;
+                    let row = db.db_delete_row_first().await.map_err(|e| {
                         tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
                     })?;
 
