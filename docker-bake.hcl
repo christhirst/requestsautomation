@@ -5,5 +5,5 @@ group "default" {
 target "requestsautomation" {
     context = "."
     dockerfile = "Dockerfile"
-    tags = ["raynkami/rust.auto:v0.0.28"]
+    tags = ["raynkami/rust.auto:v0.0.30"]
 }
