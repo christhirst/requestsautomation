@@ -90,7 +90,6 @@ pub async fn retrycall(
     let response = client
         .put(url)
         .json(&body)
-        .header(CONTENT_TYPE, "application/json")
         .header("X-Requested-By", "rust")
         .basic_auth(username, Some(password))
         .timeout(Duration::from_secs(3))
