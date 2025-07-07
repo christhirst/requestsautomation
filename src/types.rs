@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 /* use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -15,3 +17,7 @@ pub struct Resp {
     pub status: String,
 }
  */
+#[derive(Serialize, Debug, Clone)]
+pub struct ProvAcionRequest {
+    pub action: String,
+}

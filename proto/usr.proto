@@ -18,6 +18,7 @@ enum ActionType
     bar = 1;
 }
 message UserRequest {
+  string id = 1;
 }
 
 message Task {

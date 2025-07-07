@@ -5,6 +5,7 @@ use crate::error::CliError;
 
 use crate::http::client::rest_client;
 use crate::http::httprequests;
+use crate::types::ProvAcionRequest;
 use crate::Settings;
 use crate::{datapolars, grpcserver};
 
@@ -111,7 +112,9 @@ impl UserService {
     }
 }
 
-fn action_mapper(re: tonic::Request<proto::ProvAcionRequest>) -> Result<String, CliError> {
+fn action_mapper(
+    re: tonic::Request<proto::ProvAcionRequest>,
+) -> Result<ProvAcionRequest, CliError> {
     let action = match &re.get_ref().action.try_into() {
         Ok(Action::Retry) => Some(Action::Retry.to_string()),
         Ok(Action::ManualComplete) => Some(Action::ManualComplete.to_string()),
@@ -120,7 +123,8 @@ fn action_mapper(re: tonic::Request<proto::ProvAcionRequest>) -> Result<String, 
         }
     }
     .ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
-    Ok(action)
+
+    Ok(ProvAcionRequest { action: action })
 }
 
 #[tonic::async_trait]
@@ -422,6 +426,7 @@ impl User for UserService {
 
         //MATCH action with enum Protobuf to ENUM
         let action = action_mapper(request)?;
+        info!("Action: {:?}", action);
         let db_mod = conf.db;
         let conf = &conf.grpc;
         let path = conf.filelist.clone();

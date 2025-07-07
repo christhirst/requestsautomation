@@ -9,6 +9,7 @@ use tracing::{debug, info};
 use crate::{
     error::CliError,
     model::{Root, Roots, Task},
+    types::ProvAcionRequest,
 };
 
 pub async fn get_data(
@@ -82,13 +83,13 @@ async fn fetchdata<T>(
 pub async fn retrycall(
     client: &Client,
     url: &str,
-    body: String,
+    body: ProvAcionRequest,
     username: &str,
     password: &str,
 ) -> Result<Response, CliError> {
     let response = client
         .put(url)
-        .body(body)
+        .json(&body)
         .header(CONTENT_TYPE, "application/json")
         .header("X-Requested-By", "rust")
         .basic_auth(username, Some(password))
