@@ -1,4 +1,4 @@
-db = true
+db = false
 loglevel = "INFO"
 
 [grpc_server]

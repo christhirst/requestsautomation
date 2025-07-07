@@ -426,7 +426,7 @@ impl User for UserService {
         let conf = &conf.grpc;
         let path = conf.filelist.clone();
 
-        if self.db.is_none() {
+        if !db_mod {
             //LOAD data from CSV
             let taskstosubmit = CsvReader::from_path(&path)
                 .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?
