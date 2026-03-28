@@ -1,20 +1,21 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use num_traits::NumCast;
 use polars::{frame::DataFrame, prelude::DataType};
 
-fn dfToVec<T>(df: DataFrame) -> (Vec<Vec<DateTime<Utc>>>, Vec<Vec<String>>, Vec<Vec<T>>)
+#[allow(dead_code)]
+fn df_to_vec<T>(df: DataFrame) -> (Vec<Vec<DateTime<Utc>>>, Vec<Vec<String>>, Vec<Vec<T>>)
 where
     T: NumCast,
 {
     let series_list = df.iter().collect::<Vec<_>>();
     let mut list_dt = vec![];
-    let mut list_f64 = vec![];
+    let mut _list_f64: Vec<Vec<f64>> = vec![];
     let mut list_str = vec![];
-    let mut list_T = vec![];
+    let list_t = vec![];
     for i in series_list {
         //TODO Do it with generics and T WHERE T:
         match i.dtype() {
-            DataType::Datetime(time_unit, time_zone) => {
+            DataType::Datetime(_time_unit, _time_zone) => {
                 println!("Data type is Datetime");
                 let vec_datetime: Vec<DateTime<Utc>> = i
                     .datetime()
@@ -24,8 +25,7 @@ where
                         opt_ts.and_then(|ts| {
                             let secs = ts / 1000;
                             let nsecs = ((ts % 1000) * 1_000_000) as u32;
-                            NaiveDateTime::from_timestamp_opt(secs, nsecs)
-                                .map(|naive| DateTime::<Utc>::from_utc(naive, Utc))
+                            DateTime::from_timestamp(secs, nsecs)
                         })
                     })
                     .collect();
@@ -33,18 +33,18 @@ where
             }
             DataType::Int32 => {
                 println!("Data type is Int32");
-                let vec: Vec<T> = i
+                let _vec: Vec<T> = i
                     .iter()
                     .map(|av| av.extract::<T>().unwrap()) // or handle errors as needed
                     .collect();
             }
             DataType::Float64 => {
                 println!("Data type is Float64");
-                let vec: Vec<f64> = i
+                let _vec: Vec<f64> = i
                     .iter()
                     .map(|av| av.extract::<f64>().unwrap()) // or handle errors as needed
                     .collect();
-                list_f64 = vec![vec];
+                //list_f64 = vec![_vec];
             }
 
             DataType::String => {
@@ -59,9 +59,10 @@ where
         }
     }
 
-    (list_dt, list_str, list_T)
+    (list_dt, list_str, list_t)
 }
 
+#[allow(unused_imports)]
 mod tests {
     use super::*;
     use polars::{
@@ -80,7 +81,7 @@ mod tests {
                     .unwrap(),
             )
             .unwrap();
-        let dd = dfToVec::<i32>(df.clone());
+        let dd = df_to_vec::<i32>(df.clone());
         assert_eq!(dd.0.len(), 1);
         assert_eq!(dd.1.len(), 3);
     }
@@ -97,7 +98,7 @@ mod tests {
                     .unwrap(),
             )
             .unwrap();
-        let dd = dfToVec::<i32>(df.clone());
+        let dd = df_to_vec::<i32>(df.clone());
         assert_eq!(dd.0.len(), 1);
         assert_eq!(dd.1.len(), 3);
     }

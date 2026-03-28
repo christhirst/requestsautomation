@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use surrealdb::RecordId;
+use surrealdb_types::{RecordId, SurrealValue};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, SurrealValue)]
 pub struct Task {
     pub id: Option<RecordId>,
     pub process_instance_task_information_creation_date: DateTime<Utc>,
@@ -13,7 +13,7 @@ pub struct Task {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, SurrealValue)]
 pub struct Record {
     pub id: RecordId,
 }

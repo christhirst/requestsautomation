@@ -3,13 +3,13 @@ import "google/protobuf/timestamp.proto";
 package requestsautomation;
 
 
-//TODO delete db
+
 service User {
   rpc ConfReload(UserRequest) returns (ConfigResponse);
   rpc CheckCon(UserRequest) returns (ConfigResponse);
   rpc GenList(UserRequest) returns (ListResponse);
   rpc DbDelete(UserRequest) returns (UserResponse);
-  rpc ProvTasksList(UserRequest) returns (ListResponse);
+  rpc ProvTasksList(FilterRequest) returns (ListResponse);
   rpc ProvAction(ProvAcionRequest) returns (Dictionary);
 }
 enum ActionType
@@ -17,6 +17,16 @@ enum ActionType
     retry = 0;
     bar = 1;
 }
+
+message FilterRequest {
+  map<string, FilterValues> urlfilter = 1;
+}
+
+message FilterValues {
+  repeated string values = 1;
+}
+
+
 message UserRequest {
   string id = 1;
 }

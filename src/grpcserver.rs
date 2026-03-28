@@ -1,12 +1,14 @@
 use crate::config::Database;
+use crate::dataendpoint::action_mapper;
 //use crate::config3::AppConfig;
 use crate::db::types::Task;
 use crate::error::CliError;
 
-use crate::http::client::rest_client;
-use crate::http::httprequests;
-use crate::types::ProvAcionRequest;
 use crate::Settings;
+use crate::file::file_header;
+use crate::http::client::rest_client;
+use crate::http::httprequests::{self, filterbuilder};
+use crate::types::ProvAcionRequest;
 use crate::{datapolars, grpcserver};
 
 use chrono::DateTime;
@@ -15,8 +17,8 @@ use chrono::Utc;
 use polars::functions::concat_df_horizontal;
 use polars::prelude::CsvReader;
 use prost_types::Timestamp;
-use surrealdb::engine::remote::ws::Client;
 use surrealdb::Surreal;
+use surrealdb::engine::remote::ws::Client;
 use tokio::sync::Mutex;
 
 use std::thread;
@@ -40,25 +42,6 @@ pub mod proto {
         tonic::include_file_descriptor_set!("user_descriptor");
 }
 
-#[derive(Clone, Copy, Display)]
-// If we don't care about inner capitals, we don't need to set `serialize_all`
-// and can leave parenthesis empty.
-#[strum(serialize_all = "lowercase")]
-enum Action {
-    Retry,
-    ManualComplete,
-}
-
-impl TryFrom<i32> for Action {
-    type Error = ();
-    fn try_from(v: i32) -> Result<Self, Self::Error> {
-        match v {
-            x if x == Action::Retry as i32 => Ok(Action::Retry),
-            x if x == Action::ManualComplete as i32 => Ok(Action::ManualComplete),
-            _ => Err(()),
-        }
-    }
-}
 type State = std::sync::Arc<tokio::sync::RwLock<Option<Settings>>>;
 
 #[derive(Debug)]
@@ -112,21 +95,6 @@ impl UserService {
     }
 }
 
-fn action_mapper(
-    re: tonic::Request<proto::ProvAcionRequest>,
-) -> Result<ProvAcionRequest, CliError> {
-    let action = match &re.get_ref().action.try_into() {
-        Ok(Action::Retry) => Some(Action::Retry.to_string()),
-        Ok(Action::ManualComplete) => Some(Action::ManualComplete.to_string()),
-        Err(_) => {
-            panic!("Unknown action");
-        }
-    }
-    .ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
-
-    Ok(ProvAcionRequest { action: action })
-}
-
 #[tonic::async_trait]
 impl User for UserService {
     async fn conf_reload(
@@ -135,7 +103,7 @@ impl User for UserService {
     ) -> Result<tonic::Response<proto::ConfigResponse>, tonic::Status> {
         //CONFIG data from file
         //TODO DB reload
-        let file = "Config.toml";
+        //let file = "Config.toml";
 
         let conf = Settings::new().unwrap();
         let mut confs = self.state.write().await;
@@ -194,12 +162,16 @@ impl User for UserService {
                 .map(|name| Series::new_empty(name, &DataType::String))
                 .collect();
 
-            let mut df = DataFrame::new(empty_columns).unwrap();
+            let mut df = DataFrame::new(empty_columns)
+                .map_err(|e| tonic::Status::new(tonic::Code::Cancelled, format!("{:?}", e)))?;
+
             let mut file = OpenOptions::new()
                 .create(true)
                 .append(true)
                 .open(path)
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                .map_err(|e| {
+                    tonic::Status::new(tonic::Code::NotFound, format!("File not found: {:?}", e))
+                })?;
             CsvWriter::new(&mut file)
                 .include_header(fileexists)
                 .finish(&mut df)
@@ -239,7 +211,7 @@ impl User for UserService {
             let ii = db.db_delete_all("task").await?;
             let ii = ii.len();
 
-            let conf_db = settings.database;
+            let _conf_db = settings.database;
 
             return Ok(tonic::Response::new(proto::UserResponse {
                 result: ii as i64,
@@ -256,8 +228,13 @@ impl User for UserService {
     //TODO Print CSV
     async fn prov_tasks_list(
         &self,
-        _request: tonic::Request<proto::UserRequest>,
+        request: tonic::Request<proto::FilterRequest>,
     ) -> Result<tonic::Response<proto::ListResponse>, tonic::Status> {
+        let req = request.into_inner();
+        info!("Request: {:?}", req);
+        let urllist = filterbuilder(req.urlfilter);
+
+        //CONFIG data from file
         let settings = self.get_config().await?;
         let conf = settings.grpc;
         let timeout = conf.timeout;
@@ -268,10 +245,8 @@ impl User for UserService {
         let client = rest_client(timeout)?;
         //URL create
         let geturl = format!("{}{}{}", &conf.baseurl, conf.urlput, conf.urlget);
-        let urllist = httprequests::urlsbuilder(&conf.baseurl, &conf.urlfilter);
         debug!("URLBUILDER: {:?}", &urllist);
 
-        //URL loop
         for buildurl in urllist {
             //URL + arguments
             let newurl = format!("{}{}", geturl, buildurl);
@@ -302,13 +277,16 @@ impl User for UserService {
                         )
                     })?;
             //println!("hm: {:?}", hm);
-            //FILL series
+
+            //FILL series with data
             let data = datapolars::fillseries(data, &mut hm).clone();
 
             //DATAFRAME create
             let mut df_append = DataFrame::default();
             for (_i, v) in data {
+                //convert series to dataframe
                 let df = v.into_frame();
+                //concat dataframe
                 df_append = concat_df_horizontal(&[df_append, df]).map_err(|e| {
                     tonic::Status::new(
                         tonic::Code::NotFound,
@@ -344,8 +322,8 @@ impl User for UserService {
 
             if self.db.is_none() {
                 info!("DB is None, writing to CSV");
+
                 //CSV write
-                let fileexists = !Path::new(path).exists();
                 let mut file = OpenOptions::new()
                     .create(true)
                     .append(true)
@@ -353,10 +331,7 @@ impl User for UserService {
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
 
                 //CSV write header
-                CsvWriter::new(&mut file)
-                    .include_header(fileexists)
-                    .finish(&mut out)
-                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+                file_header(file, path, out)?;
 
                 //CSV read
                 let contents =
@@ -467,7 +442,7 @@ impl User for UserService {
                 debug!("Id: {id} PutUrl: {puturl}");
 
                 //LOOP setup
-                let status: u16 = 0;
+                let mut status: u16 = 0;
                 let mut retry: i32 = 0;
                 //RETRY Test Config
                 while retry < 3 && status != 200 {
@@ -486,16 +461,12 @@ impl User for UserService {
                     {
                         Ok(response) => {
                             info!("Status: {}", response.status().as_u16());
+                            status = response.status().as_u16();
                             let newresp = proto::Task {
-                                /* links: vec![Link {
-                                    rel: "self".to_string(),
-                                    href: puturl.clone(),
-                                }], */
                                 id: id.to_string(),
                                 status: response.status().to_string(),
                             };
                             thread::sleep(Duration::from_secs(1));
-                            //tasksdone.push(newresp);
                             tasks_retried.insert(id.to_string(), newresp);
                             Ok(())
                         }
@@ -505,7 +476,6 @@ impl User for UserService {
                                 id: id.to_string(),
                                 status: 400.to_string(),
                             };
-                            //tasksdone.push(newresp);
                             tasks_retried.insert(id.to_string(), newresp);
                             thread::sleep(Duration::from_secs(1));
                             Err(e)
@@ -532,18 +502,13 @@ impl User for UserService {
                     })?;
                     CsvWriter::new(&mut file).finish(&mut df_a).unwrap();
                 } else {
-                    let mut db = self.db.as_ref().unwrap().lock().await;
-                    let row = db.db_get_first_row("task").await.map_err(|e| {
+                    let db = self.db.as_ref().unwrap().lock().await;
+                    let _row = db.db_get_first_row("task").await.map_err(|e| {
                         tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
                     })?;
-                    let row = db.db_delete_row_first().await.map_err(|e| {
+                    let _row = db.db_delete_row_first().await.map_err(|e| {
                         tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e))
                     })?;
-
-                    //let db = self.db_delete("task").await;
-                    //.unwrap_or_else(|| create_db_client());
-
-                    //DATABASE task delete
                 }
 
                 thread::sleep(Duration::from_millis(conf.sleep));
@@ -554,22 +519,24 @@ impl User for UserService {
             Ok(tonic::Response::new(response))
         } else {
             //SELECT FROM DB
-            while true {
-                let mut db = self.db.as_ref().unwrap().lock().await;
-                let ii = db
-                    .db_get_first_row("task")
-                    .await
-                    .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
+            loop {
+                let db = self.db.as_ref().unwrap().lock().await;
+                let ii = match db.db_get_first_row("task").await {
+                    Ok(task) => task,
+                    Err(_) => break, // Break when no more tasks
+                };
                 //Process Instance.Task Details.Key
-                let task_id = ii.process_instance_task_details_key.clone();
-                let entry_id = ii.id.unwrap();
+                let _task_id = ii.process_instance_task_details_key.clone();
+                let entry_id = ii.id.expect("Task should have an ID");
 
                 db.db_delete_by_id(entry_id)
                     .await
                     .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?;
                 thread::sleep(Duration::from_millis(conf.sleep));
             }
-            Ok(tonic::Response::new(todo!()))
+            Ok(tonic::Response::new(proto::Dictionary {
+                pairs: HashMap::new(),
+            }))
         }
     }
 }

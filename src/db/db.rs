@@ -1,6 +1,8 @@
 use surrealdb::engine::remote::ws::{Ws, Wss};
 use surrealdb::opt::auth::Root;
-use surrealdb::{RecordId, Response, Surreal};
+use surrealdb::IndexedResults as Response;
+use surrealdb_types::RecordId;
+use surrealdb::Surreal;
 
 use crate::config::Database;
 use crate::db::types::{Record, Task};
@@ -30,7 +32,7 @@ impl DBService {
 
     pub async fn db_create_entry(
         &mut self,
-        resource: &str,
+        _resource: &str,
         task: Task,
     ) -> surrealdb::Result<Option<Task>> {
         // Create a new person with a random id
@@ -59,10 +61,7 @@ impl DBService {
             task.process_instance_task_information_target_user
         );
 
-        let created: Option<Task> = self
-            .db
-            .as_ref()
-            .unwrap()
+        let created: Option<Task> = db
             .query(bad_sql)
             .await
             .unwrap()
@@ -86,7 +85,7 @@ impl DBService {
     }
     #[allow(dead_code)]
     pub async fn db_list(&self) -> Result<(), CliError> {
-        let result: Vec<Task> = self
+        let _result: Vec<Task> = self
             .db
             .clone()
             .unwrap()
@@ -98,7 +97,7 @@ impl DBService {
         Ok(())
     }
 
-    pub async fn db_get_first_row(&self, task: &str) -> Result<Task, CliError> {
+    pub async fn db_get_first_row(&self, _task: &str) -> Result<Task, CliError> {
         let db = self.db.as_ref().unwrap();
         let mut result: Vec<Task> = db
             .query("SELECT * FROM task ORDER BY process_instance_task_information_creation_date ASC LIMIT 1;")
@@ -140,12 +139,12 @@ impl DBService {
         //let _ = client.authenticate(db_conf.token).await.is_ok();
         let jwt = client
             .signin(Root {
-                username: &db_conf.user,
-                password: &db_conf.password,
+                username: db_conf.user,
+                password: db_conf.password,
             })
             .await?;
         self.db = Some(client);
-        self.jwt = Some(jwt.into_insecure_token());
+        self.jwt = Some(jwt.access.into_insecure_token());
         tracing::info!("Database reloaded successfully");
         Ok(())
     }
@@ -159,14 +158,14 @@ impl DBService {
         //let _ = client.authenticate(db_conf.token).await.is_ok();
         let jwt = client
             .signin(Root {
-                username: &db_conf.user,
-                password: &db_conf.password,
+                username: db_conf.user,
+                password: db_conf.password,
             })
             .await?;
         Ok(DBService {
             conf: conf,
             db: Some(client),
-            jwt: Some(jwt.into_insecure_token()),
+            jwt: Some(jwt.access.into_insecure_token()),
         })
     }
 }

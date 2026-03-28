@@ -6,10 +6,10 @@ use polars::{
     error::PolarsError,
     frame::DataFrame,
     lazy::{
-        dsl::{col, lit, StrptimeOptions},
+        dsl::{StrptimeOptions, col, lit},
         frame::IntoLazy,
     },
-    prelude::{NamedFrom, SortMultipleOptions},
+    prelude::NamedFrom,
     series::Series,
 };
 use reqwest::Client;
@@ -21,11 +21,7 @@ pub fn get_data(df: DataFrame, filter1: &str, filter2: &str) -> Result<DataFrame
     let out = df
         .clone()
         .lazy()
-        .filter(
-            polars::lazy::dsl::col("Objects.Name")
-                .str()
-                .contains(lit(filter1), false),
-        )
+        .filter(col("Objects.Name").str().contains(lit(filter1), false))
         .filter(
             col("Process Definition.Tasks.Task Name")
                 .str()
@@ -45,12 +41,8 @@ pub fn get_data(df: DataFrame, filter1: &str, filter2: &str) -> Result<DataFrame
             )])
         .with_columns([col("Process Instance.Task Details.Key").cast(DataType::Int64)])
         .sort(
-            ["Process Instance.Task Information.Creation Date"],
-            SortMultipleOptions {
-                descending: vec![false],
-                nulls_last: true,
-                ..Default::default()
-            },
+            vec!["Process Instance.Task Information.Creation Date".to_string()],
+            Default::default(),
         )
         .collect()?;
     Ok(out)

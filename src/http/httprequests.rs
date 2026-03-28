@@ -1,13 +1,14 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use reqwest::{
-    header::{ACCEPT, CONTENT_TYPE},
     Client, Response,
+    header::{ACCEPT, CONTENT_TYPE},
 };
 use tracing::{debug, info};
 
 use crate::{
     error::CliError,
+    grpcserver::proto::FilterValues,
     model::{Root, Roots, Task},
     types::ProvAcionRequest,
 };
@@ -27,9 +28,7 @@ pub async fn get_data(
 
     //let mut next_link: String;
     while more && count < fetched {
-        let dat = Root::default();
-        debug!("Fetching data from: {}", url);
-        let data = fetchdata(client, &mut url, username, password, dat).await?;
+        let data = fetchdata(client, &mut url, username, password).await?;
         debug!("Entires in Backend: {:?}", data);
         match data {
             Roots::Root(d) => {
@@ -45,7 +44,7 @@ pub async fn get_data(
     Ok(alltasks)
 }
 
-fn fetchdatass(data: Root, alltasks: &mut Vec<Task>, url: &mut String) -> (bool) {
+fn fetchdatass(data: Root, alltasks: &mut Vec<Task>, url: &mut String) -> bool {
     alltasks.append(&mut data.tasks.unwrap());
     let more = data.has_more;
     //let mut next_link: String;
@@ -60,12 +59,11 @@ fn fetchdatass(data: Root, alltasks: &mut Vec<Task>, url: &mut String) -> (bool)
     //todo!()
 }
 
-async fn fetchdata<T>(
+async fn fetchdata(
     client: &Client,
     url: &str,
     username: &str,
     password: &str,
-    mut t: T,
 ) -> Result<Roots, CliError> {
     debug!("Fetching data from: {}", url);
     let response = client
@@ -100,7 +98,8 @@ pub async fn retrycall(
 
 // build url like:
 // /iam/governance/selfservice/api/v1/accounts/account?userid={userKey}
-pub fn urlsbuilder(_urlsnippets: &str, urlfilter: &Vec<(String, Vec<String>)>) -> Vec<String> {
+#[allow(dead_code)]
+pub fn urlsbuilder(urlfilter: &Vec<(String, Vec<String>)>) -> Vec<String> {
     let mut uri: Vec<Vec<String>> = Vec::new();
     for (url, filters) in urlfilter {
         let mut tup: Vec<String> = Vec::new();
@@ -123,4 +122,63 @@ pub fn urlsbuilder(_urlsnippets: &str, urlfilter: &Vec<(String, Vec<String>)>) -
         combined = uri.get(0).unwrap().clone();
     }
     combined
+}
+
+pub fn filterbuilder(urlfilter: HashMap<String, FilterValues>) -> Vec<String> {
+    let mut uri: Vec<Vec<String>> = Vec::new();
+    for (url, filters) in urlfilter {
+        let mut tup: Vec<String> = Vec::new();
+        for filter in filters.values {
+            let ent = format!("{}+eq+{}", url, filter);
+            tup.push(ent)
+        }
+        uri.push(tup);
+    }
+    println!("URI: {:?}", uri);
+    let mut combined = Vec::new();
+    if uri.len() > 1 {
+        for item1 in &uri[0] {
+            for item2 in &uri[1] {
+                combined.push(format!("{} AND {}", item1, item2));
+            }
+        }
+    } else {
+        combined = uri.get(0).unwrap().clone();
+    }
+    combined
+}
+
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::{grpcserver::proto::FilterValues, http::httprequests::filterbuilder};
+
+    #[test]
+    fn filterbuilder_test() {
+        let fi = HashMap::from([
+            (
+                "userid".to_string(),
+                FilterValues {
+                    values: vec!["user1".to_string(), "user2".to_string()],
+                },
+            ),
+            (
+                "status".to_string(),
+                FilterValues {
+                    values: vec!["active".to_string()],
+                },
+            ),
+            ((
+                "role".to_string(),
+                FilterValues {
+                    values: vec!["admin".to_string(), "user".to_string()],
+                },
+            )),
+        ]);
+        let result = filterbuilder(fi);
+        println!("Result: {:?}", result);
+        assert!(result.contains(
+            &"userid+eq+user1 AND userid+eq+user2 AND status+eq+active AND role+eq+admin AND role+eq+user".to_string()
+        ));
+    }
 }

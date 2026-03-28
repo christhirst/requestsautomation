@@ -1,7 +1,9 @@
 mod config;
+pub mod dataendpoint;
 mod datapolars;
 mod db;
 mod error;
+mod file;
 mod grpcserver;
 mod http;
 mod model;
@@ -46,7 +48,7 @@ async fn main() -> Result<(), CliError> {
 
     info!(
         "Version: {:?}, LOGLEVEL: {:?}, URL: {:?}",
-        "v0.0.29", env_loglevl, geturl
+        "v0.0.33", env_loglevl, geturl
     );
 
     let settg = Settings::new().unwrap().grpc_server;

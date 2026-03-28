@@ -1,4 +1,5 @@
 use serde::Serialize;
+use strum_macros::Display;
 
 /* use serde::{Deserialize, Serialize};
 
@@ -20,4 +21,23 @@ pub struct Resp {
 #[derive(Serialize, Debug, Clone)]
 pub struct ProvAcionRequest {
     pub action: String,
+}
+#[derive(Clone, Copy, Display)]
+// If we don't care about inner capitals, we don't need to set `serialize_all`
+// and can leave parenthesis empty.
+#[strum(serialize_all = "lowercase")]
+pub enum Action {
+    Retry,
+    ManualComplete,
+}
+
+impl TryFrom<i32> for Action {
+    type Error = ();
+    fn try_from(v: i32) -> Result<Self, Self::Error> {
+        match v {
+            x if x == Action::Retry as i32 => Ok(Action::Retry),
+            x if x == Action::ManualComplete as i32 => Ok(Action::ManualComplete),
+            _ => Err(()),
+        }
+    }
 }

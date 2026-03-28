@@ -3,11 +3,13 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[allow(dead_code)]
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
     pub action: String,
 }
+#[allow(dead_code)]
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Resp {
@@ -42,6 +44,7 @@ pub enum Roots {
     Root(Root),
     //RootAccount(Root),
 }
+#[allow(dead_code)]
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Urlfilter {
@@ -49,12 +52,14 @@ pub struct Urlfilter {
     pub f2: F2,
 }
 
+#[allow(dead_code)]
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct F1 {
     pub test: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct F2 {
@@ -99,6 +104,7 @@ pub struct Account {
     pub fields: Vec<Field>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Properties {
@@ -108,6 +114,7 @@ pub struct Properties {
     pub users: Users,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Users {
@@ -115,10 +122,12 @@ pub struct Users {
     pub type_field: String,
     //pub items: Items<String>,
 }
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 struct Items<T> {
     items: Vec<T>,
 }
+#[allow(dead_code)]
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct APIResponse {
@@ -129,6 +138,7 @@ pub struct APIResponse {
 }
 
 //  structs for option price query
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct OptionResponse {
