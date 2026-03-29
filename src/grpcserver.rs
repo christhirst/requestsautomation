@@ -5,7 +5,7 @@ use crate::db::types::Task;
 use crate::error::CliError;
 
 use crate::Settings;
-use crate::file::file_header;
+use crate::file::{data_load, file_header};
 use crate::http::client::rest_client;
 use crate::http::httprequests::{self, filterbuilder};
 use crate::types::ProvAcionRequest;
@@ -396,27 +396,23 @@ impl User for UserService {
         &self,
         request: tonic::Request<proto::ProvAcionRequest>,
     ) -> Result<tonic::Response<proto::Dictionary>, tonic::Status> {
-        //CONFIG data from state
-        let conf = self.get_config().await?;
-
         //MATCH action with enum Protobuf to ENUM
         let action = action_mapper(request)?;
+
+        //CONFIG data from state
+        let conf = self.get_config().await?;
         info!("Action: {:?}", action);
         let db_mod = conf.db;
         let conf = &conf.grpc;
         let path = conf.filelist.clone();
 
+        //CLIENT SETUP
+        let client = rest_client(conf.timeout)
+            .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?;
+
         if !db_mod {
             //LOAD data from CSV
-            let taskstosubmit = CsvReader::from_path(&path)
-                .map_err(|e| tonic::Status::new(tonic::Code::NotFound, format!("{:?}", e)))?
-                .finish()
-                .unwrap()["Process Instance.Task Details.Key"]
-                .as_list();
-
-            //CLIENT SETUP
-            let client = rest_client(conf.timeout)
-                .map_err(|e| tonic::Status::new(tonic::Code::Internal, format!("{:?}", e)))?;
+            let taskstosubmit = data_load(&path)?;
 
             //LOOP setup
             //LIST of retried tasks
