@@ -1,5 +1,5 @@
 db = false
-loglevel = "INFO"
+loglevel = "DEBUG"
 
 [grpc_server]
 port = "50051"

@@ -1,13 +1,13 @@
-
 [grpc]
 grpcport = "http://0.0.0.0:50051"
 username = "testuser"
 password = "testPW"
-baseurl = "http://172.27.214.136:8000"
-urlget = "/te?q=123+eq+123 AND "
+baseurl = "http://127.0.0.1:8000"
+urlget = ""
+#urlget = "/te?q=123+eq+123 AND "
 urlput = "/users"
 urlaccounts = "/accounts"
-urlfilter = [["aa::bb::cc", ["AA", "BB"]]]
+#urlfilter = [["aa::bb::cc", ["AA", "BB"]]]
 #urlfilter =  [[ "aa::bb::cc", ["AA","BB","CC" ]], [ "ggggg", ["aa","bb","cc" ] ]]
 printmode = false
 checkmode = false
@@ -17,6 +17,6 @@ filter1 = "AAccount"
 filter2 = "Update"
 listof = "AAccount"
 attr = "Process Instance.Task Information.Target User"
-filelist = "path3.csv"
+filelist = "path4.csv"
 timeout = 30
 sleep = 10000

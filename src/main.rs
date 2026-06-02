@@ -42,7 +42,7 @@ async fn main() -> Result<(), CliError> {
     let conf = Settings::new().unwrap();
 
     let url = &conf.grpc.baseurl.clone();
-    let urlget = &conf.grpc.urlget.clone();
+    let urlget = &conf.grpc.urlget.clone().unwrap_or_default();
     let urlput = &conf.grpc.urlput.clone();
     let geturl = format!("{}{}{}", url, urlput, urlget);
 

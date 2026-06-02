@@ -53,8 +53,8 @@ fn fetchdatass(data: Root, alltasks: &mut Vec<Task>, url: &mut String) -> bool {
             *url = l.href.to_owned();
         }
     }
-    info!("{}", data.count / data.total_result);
-    //println!("{}", data.count / data.total_result);
+    info!("{}/{}", data.count, data.total_result);
+    //println!("{}/{}", data.count, data.total_result);
     more
     //todo!()
 }
@@ -85,6 +85,7 @@ pub async fn retrycall(
     username: &str,
     password: &str,
 ) -> Result<Response, CliError> {
+    debug!("PUT request to OIM API: {}", url);
     let response = client
         .put(url)
         .json(&body)
@@ -125,26 +126,39 @@ pub fn urlsbuilder(urlfilter: &Vec<(String, Vec<String>)>) -> Vec<String> {
 }
 
 pub fn filterbuilder(urlfilter: HashMap<String, FilterValues>) -> Vec<String> {
+    // Sort keys to ensure stable, deterministic order
+    let mut keys: Vec<&String> = urlfilter.keys().collect();
+    keys.sort();
+
     let mut uri: Vec<Vec<String>> = Vec::new();
-    for (url, filters) in urlfilter {
+    for key in keys {
+        let filters = urlfilter.get(key).unwrap();
         let mut tup: Vec<String> = Vec::new();
-        for filter in filters.values {
-            let ent = format!("{}+eq+{}", url, filter);
+        for filter in &filters.values {
+            let ent = format!("{}+eq+{}", key, filter);
             tup.push(ent)
         }
-        uri.push(tup);
+        if !tup.is_empty() {
+            uri.push(tup);
+        }
     }
     println!("URI: {:?}", uri);
-    let mut combined = Vec::new();
-    if uri.len() > 1 {
-        for item1 in &uri[0] {
-            for item2 in &uri[1] {
-                combined.push(format!("{} AND {}", item1, item2));
+
+    if uri.is_empty() {
+        return vec!["".to_string()];
+    }
+
+    let mut combined = uri[0].clone();
+    for list in uri.iter().skip(1) {
+        let mut next_combined = Vec::new();
+        for item1 in &combined {
+            for item2 in list {
+                next_combined.push(format!("{} AND {}", item1, item2));
             }
         }
-    } else {
-        combined = uri.get(0).unwrap().clone();
+        combined = next_combined;
     }
+    
     combined
 }
 
@@ -168,17 +182,17 @@ mod tests {
                     values: vec!["active".to_string()],
                 },
             ),
-            ((
+            (
                 "role".to_string(),
                 FilterValues {
                     values: vec!["admin".to_string(), "user".to_string()],
                 },
-            )),
+            ),
         ]);
         let result = filterbuilder(fi);
         println!("Result: {:?}", result);
-        assert!(result.contains(
-            &"userid+eq+user1 AND userid+eq+user2 AND status+eq+active AND role+eq+admin AND role+eq+user".to_string()
-        ));
+        assert_eq!(result.len(), 4);
+        assert!(result.contains(&"role+eq+admin AND status+eq+active AND userid+eq+user1".to_string()));
+        assert!(result.contains(&"role+eq+user AND status+eq+active AND userid+eq+user2".to_string()));
     }
 }

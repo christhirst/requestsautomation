@@ -1,0 +1,72 @@
+proto < ../proto/usr.proto
+
+### ConfReload
+GRPC localhost:50051/requestsautomation.User/ConfReload
+{
+    "id": "default"
+}
+
+### CheckCon
+GRPC localhost:50051/requestsautomation.User/CheckCon
+{
+    "id": "default"
+}
+
+### GenList (OIM Filter from Above - CSV persistence mode)
+GRPC localhost:50051/requestsautomation.User/GenList
+{
+    "urlget": "/te?q=123+eq+123 AND ",
+    "urlfilter": {
+        "aa::bb::cc": {
+            "values": ["AA", "BB"]
+        }
+    }
+}
+
+### GenList (OIM Filter from Above - Direct Return Mode)
+GRPC localhost:50051/requestsautomation.User/GenList
+{
+    "urlget": "/te?q=123+eq+123 AND ",
+    "urlfilter": {
+        "aa::bb::cc": {
+            "values": ["AA", "BB"]
+        }
+    },
+    "mode": "direct"
+}
+
+### GenList (Mock Matching Example - returns data on local mock server)
+GRPC localhost:50051/requestsautomation.User/GenList
+{
+    "urlget": "",
+    "urlfilter": {
+        "Objects.Name": {
+            "values": ["AAccount"]
+        }
+    },
+    "mode": "direct"
+}
+
+### DbDelete
+GRPC localhost:50051/requestsautomation.User/DbDelete
+{
+    "id": "default"
+}
+
+### ProvTasksList (OIM Filter from Above - Direct Return Mode)
+GRPC localhost:50051/requestsautomation.User/ProvTasksList
+{
+    "urlget": "/te?q=123+eq+123 AND ",
+    "urlfilter": {
+        "aa::bb::cc": {
+            "values": ["AA", "BB"]
+        }
+    },
+    "mode": "direct"
+}
+
+### ProvAction
+GRPC localhost:50051/requestsautomation.User/ProvAction
+{
+    "action": "retry"
+}
