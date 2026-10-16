@@ -1,47 +1,48 @@
 use crate::{
     error::CliError,
     grpcserver::proto,
-    types::{Action, ProvAcionRequest},
+    types::{Action, ProvActionPayload},
 };
 
-pub fn action_mapper(
-    re: tonic::Request<proto::ProvAcionRequest>,
-) -> Result<ProvAcionRequest, CliError> {
-    let action = match &re.get_ref().action.try_into() {
-        Ok(Action::Retry) => Some(Action::Retry.to_string()),
-        Ok(Action::ManualComplete) => Some(Action::ManualComplete.to_string()),
-        Err(_) => {
-            panic!("Unknown action");
-        }
-    }
-    .ok_or(CliError::EntityNotFound { entity: "", id: 1 })?;
+pub fn action_mapper(req: &proto::ProvActionRequest) -> Result<ProvActionPayload, CliError> {
+    let action = Action::try_from(req.action)
+        .map_err(|code| CliError::InvalidAction(format!("Unknown action code: {code}")))?;
 
-    Ok(ProvAcionRequest { action: action })
+    Ok(ProvActionPayload {
+        action: action.to_string(),
+    })
 }
 
-/* pub async fn getheaders(
-    client: &Client,
-    url: &str,
-    username: &str,
-    password: &str,
-) -> Result<HashMap<String, Series>, CliError> {
-    info!("headersurl: {:?}", url);
-    let data = httprequests::get_data(client, url, username, password, 1).await?;
-    let mut headers = vec!["".to_owned()];
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    if let Some(ii) = data.clone().into_iter().next() {
-        for iii in ii.fields {
-            headers.push(iii.name.to_owned())
-        }
-    };
-    let mut hm: HashMap<String, Series> = HashMap::from([]);
-    info!("headers: {:?}", headers);
+    #[test]
+    fn action_mapper_maps_retry_and_manual_complete() {
+        let retry_req = proto::ProvActionRequest {
+            action: proto::ActionType::Retry as i32,
+            mode: String::new(),
+            task_ids: vec![],
+        };
+        let mapped_retry = action_mapper(&retry_req).unwrap();
+        assert_eq!(mapped_retry.action, "retry");
 
-    for header in headers {
-        let v1: Vec<String> = vec![];
-        let series = Series::new(header.as_str(), v1);
-        hm.entry(header).or_insert(series);
+        let mc_req = proto::ProvActionRequest {
+            action: proto::ActionType::ManualComplete as i32,
+            mode: String::new(),
+            task_ids: vec![],
+        };
+        let mapped_mc = action_mapper(&mc_req).unwrap();
+        assert_eq!(mapped_mc.action, "manualComplete");
     }
 
-    Ok(hm)
-} */
+    #[test]
+    fn action_mapper_rejects_invalid_action() {
+        let invalid_req = proto::ProvActionRequest {
+            action: 42,
+            mode: String::new(),
+            task_ids: vec![],
+        };
+        assert!(action_mapper(&invalid_req).is_err());
+    }
+}

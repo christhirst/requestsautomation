@@ -12,18 +12,22 @@ GRPC localhost:50051/requestsautomation.User/CheckCon
     "id": "default"
 }
 
-### GenList (OIM Filter from Above - CSV persistence mode)
+### GenList (Combined URL Filters - CSV Persistence Mode)
 GRPC localhost:50051/requestsautomation.User/GenList
 {
     "urlget": "/te?q=123+eq+123 AND ",
     "urlfilter": {
         "aa::bb::cc": {
-            "values": ["AA", "BB"]
+            "values": ["AA", "BB", "CC"]
+        },
+        "ggggg": {
+            "values": ["aa", "bb", "cc"]
         }
-    }
+    },
+    "mode": "file"
 }
 
-### GenList (OIM Filter from Above - Direct Return Mode)
+### GenList (Combined URL Filters - SurrealDB Persistence Mode)
 GRPC localhost:50051/requestsautomation.User/GenList
 {
     "urlget": "/te?q=123+eq+123 AND ",
@@ -32,10 +36,10 @@ GRPC localhost:50051/requestsautomation.User/GenList
             "values": ["AA", "BB"]
         }
     },
-    "mode": "direct"
+    "mode": "db"
 }
 
-### GenList (Mock Matching Example - returns data on local mock server)
+### GenList (Direct Return Mode via gRPC)
 GRPC localhost:50051/requestsautomation.User/GenList
 {
     "urlget": "",
@@ -47,13 +51,7 @@ GRPC localhost:50051/requestsautomation.User/GenList
     "mode": "direct"
 }
 
-### DbDelete
-GRPC localhost:50051/requestsautomation.User/DbDelete
-{
-    "id": "default"
-}
-
-### ProvTasksList (OIM Filter from Above - Direct Return Mode)
+### ProvTasksList (Direct Return Mode with Custom Polars Filters & Sorting)
 GRPC localhost:50051/requestsautomation.User/ProvTasksList
 {
     "urlget": "/te?q=123+eq+123 AND ",
@@ -62,11 +60,36 @@ GRPC localhost:50051/requestsautomation.User/ProvTasksList
             "values": ["AA", "BB"]
         }
     },
-    "mode": "direct"
+    "mode": "direct",
+    "filter_object": "AAccount",
+    "filter_task": "Update",
+    "sort_descending": false
 }
 
-### ProvAction
+### ProvAction - Retry Tasks (from configured storage or specified mode)
 GRPC localhost:50051/requestsautomation.User/ProvAction
 {
-    "action": "retry"
+    "action": "retry",
+    "mode": "file"
+}
+
+### ProvAction - Manual Complete Tasks
+GRPC localhost:50051/requestsautomation.User/ProvAction
+{
+    "action": "manual_complete",
+    "mode": "file"
+}
+
+### ProvAction - Direct Task IDs (Retry or Manual Complete without CSV/DB)
+GRPC localhost:50051/requestsautomation.User/ProvAction
+{
+    "action": "manual_complete",
+    "mode": "direct",
+    "task_ids": ["622483", "622484"]
+}
+
+### DbDelete
+GRPC localhost:50051/requestsautomation.User/DbDelete
+{
+    "id": "default"
 }

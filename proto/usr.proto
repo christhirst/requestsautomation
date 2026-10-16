@@ -2,20 +2,18 @@ syntax = "proto3";
 import "google/protobuf/timestamp.proto";
 package requestsautomation;
 
-
-
 service User {
   rpc ConfReload(UserRequest) returns (ConfigResponse);
   rpc CheckCon(UserRequest) returns (ConfigResponse);
   rpc GenList(FilterRequest) returns (ListResponse);
-  rpc DbDelete(UserRequest) returns (UserResponse);
   rpc ProvTasksList(FilterRequest) returns (ListResponse);
-  rpc ProvAction(ProvAcionRequest) returns (Dictionary);
+  rpc ProvAction(ProvActionRequest) returns (Dictionary);
+  rpc DbDelete(UserRequest) returns (UserResponse);
 }
-enum ActionType
-{   // whatever contents...
-    retry = 0;
-    bar = 1;
+
+enum ActionType {
+  retry = 0;
+  manual_complete = 1;
 }
 
 message FilterRequest {
@@ -23,12 +21,14 @@ message FilterRequest {
   string urlget = 2;
   int32 limit = 3;
   string mode = 4;
+  string filter_object = 5;
+  string filter_task = 6;
+  bool sort_descending = 7;
 }
 
 message FilterValues {
   repeated string values = 1;
 }
-
 
 message UserRequest {
   string id = 1;
@@ -43,7 +43,11 @@ message Dictionary {
   map<string, Task> pairs = 1;
 }
 
-message ProvAcionRequest {  ActionType action  = 1;}
+message ProvActionRequest {
+  ActionType action = 1;
+  string mode = 2;
+  repeated string task_ids = 3;
+}
 
 message TaskDetails {
   string key = 1;
@@ -53,21 +57,17 @@ message TaskDetails {
   string creation_date = 5;
 }
 
-message ListResponse {  
+message ListResponse {
   google.protobuf.Timestamp time = 1;
-  int32  result = 2;
+  int32 result = 2;
   string message = 3;
   repeated TaskDetails tasks = 4;
 }
 
-message UserResponse { int64 result = 1; }
+message UserResponse {
+  int64 result = 1;
+}
 
-message ConfigResponse { string result = 1; }
-
-/* service Admin {
-  rpc GetRequestCount(GetCountRequest) returns (CounterResponse);
-} */
-
-/* message GetCountRequest {}
-
-message CounterResponse { uint64 count = 1; } */
+message ConfigResponse {
+  string result = 1;
+}
