@@ -1,5 +1,7 @@
 .*
 !.gitignore
+!.dockerignore
+!.github/
 config/local.toml
 _*
 # '_' in src dir, ok.
@@ -8,6 +10,7 @@ target/
 .git/
 tests/
 *.lock
+!Cargo.lock
 *.lockb
 *.log
 

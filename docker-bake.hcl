@@ -1,3 +1,7 @@
+variable "TAG" {
+    default = "v0.0.34"
+}
+
 group "default" {
     targets = ["requestsautomation"]
 }
@@ -5,5 +9,8 @@ group "default" {
 target "requestsautomation" {
     context = "."
     dockerfile = "Dockerfile"
-    tags = ["raynkami/rust.auto:v0.0.34"]
+    tags = [
+        "raynkami/rust.auto:${TAG != "" ? TAG : "v0.0.34"}",
+        "raynkami/rust.auto:latest"
+    ]
 }
